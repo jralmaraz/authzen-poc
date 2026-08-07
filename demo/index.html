@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AuthZEN PoC — Authorization API Standards Lab</title>
+<style>
+:root {
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#e6edf3;--muted:#7d8590;
+  --blue:#58a6ff;--green:#3fb950;--red:#f85149;--orange:#ffa657;--purple:#bc8cff;
+  --cyan:#39d353;--teal:#56d364;
+  --yellow:#d29922;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;line-height:1.5}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:'Cascadia Code','Fira Code',monospace;font-size:12px;background:rgba(255,255,255,.06);padding:1px 5px;border-radius:4px}
+pre{background:#0a0f15;border:1px solid var(--border);border-radius:8px;padding:14px;overflow-x:auto;font-family:'Cascadia Code','Fira Code',monospace;font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-all}
+
+/* Header */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{font-size:1.1rem;font-weight:700;color:var(--text)}
+.logo span{color:var(--blue)}
+.wasm-badge{display:flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);color:var(--muted)}
+.wasm-badge.ready{border-color:var(--green);color:var(--green)}
+.wasm-badge.loading{border-color:var(--yellow);color:var(--yellow)}
+.spin{width:10px;height:10px;border:2px solid var(--yellow);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Nav */
+.nav-wrapper{background:var(--surface);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;scrollbar-width:none}
+.nav-wrapper::-webkit-scrollbar{display:none}
+nav{display:flex;white-space:nowrap}
+.tab{padding:10px 16px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:all .15s;font-size:13px;font-weight:500;user-select:none}
+.tab:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* Scenes */
+.scene{display:none;max-width:960px;margin:0 auto;padding:24px 20px}
+.scene.active{display:block}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px}
+.card-title{font-size:1rem;font-weight:700;margin-bottom:10px;color:var(--text)}
+.card-sub{font-size:.8rem;color:var(--muted);margin-top:4px}
+
+/* Grid */
+.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:12px}
+.info-grid.c2{grid-template-columns:1fr 1fr}
+.info-grid.c3{grid-template-columns:repeat(3,1fr)}
+.info-box{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:12px}
+.info-box.blue{border-color:rgba(88,166,255,.3);background:rgba(88,166,255,.05)}
+.info-box.green{border-color:rgba(63,185,80,.3);background:rgba(63,185,80,.05)}
+.info-box.orange{border-color:rgba(255,166,87,.3);background:rgba(255,166,87,.05)}
+.info-box.purple{border-color:rgba(188,140,255,.3);background:rgba(188,140,255,.05)}
+.info-box.red{border-color:rgba(248,81,73,.3);background:rgba(248,81,73,.05)}
+.info-box.cyan{border-color:rgba(57,211,83,.3);background:rgba(57,211,83,.05)}
+.ibt{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.ibv{font-size:12px;color:var(--text);line-height:1.6}
+
+/* Callout */
+.callout{background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.3);border-radius:8px;padding:12px 14px;font-size:13px;margin-bottom:12px}
+.callout.ok{border-color:rgba(63,185,80,.4);background:rgba(63,185,80,.08)}
+.callout.warn{border-color:rgba(255,166,87,.4);background:rgba(255,166,87,.08)}
+.callout.bad{border-color:rgba(248,81,73,.4);background:rgba(248,81,73,.08)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn-primary{background:var(--blue);color:#0d1117}
+.btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+.btn-green{background:var(--green);color:#0d1117}
+.btn-purple{background:var(--purple);color:#0d1117}
+.btn-sm{padding:4px 10px;font-size:11px}
+
+/* Decision badges */
+.badge-allow{display:inline-flex;align-items:center;gap:4px;background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.4);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700}
+.badge-deny{display:inline-flex;align-items:center;gap:4px;background:rgba(248,81,73,.15);color:var(--red);border:1px solid rgba(248,81,73,.4);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700}
+
+/* Form elements */
+.form-row{display:grid;grid-template-columns:1fr 2fr;gap:8px;align-items:center;margin-bottom:8px}
+.form-label{font-size:12px;color:var(--muted);font-weight:600}
+input[type=text],select,textarea{background:#0a0f15;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:13px;width:100%;font-family:inherit}
+input[type=text]:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue)}
+textarea{resize:vertical;min-height:80px;font-family:'Cascadia Code','Fira Code',monospace;font-size:12px}
+
+/* Rules table */
+.rules-table{width:100%;border-collapse:collapse;font-size:12px}
+.rules-table th{text-align:left;padding:7px 8px;color:var(--muted);border-bottom:1px solid var(--border);font-weight:600;font-size:11px;text-transform:uppercase}
+.rules-table td{padding:7px 8px;border-bottom:1px solid rgba(48,54,61,.5);vertical-align:middle}
+.rules-table tr:hover td{background:rgba(255,255,255,.02)}
+.dec-allow{color:var(--green);font-weight:700}
+.dec-deny{color:var(--red);font-weight:700}
+
+/* Steps */
+.step-list{display:flex;flex-direction:column;gap:8px}
+.step{display:flex;gap:12px;padding:12px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;opacity:.5;transition:opacity .3s}
+.step.active{opacity:1;border-color:var(--blue);background:rgba(88,166,255,.05)}
+.step.done{opacity:1;border-color:var(--green)}
+.step-num{width:24px;height:24px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.step.done .step-num{background:var(--green);color:#0d1117}
+.step.active .step-num{background:var(--blue);color:#0d1117}
+.step-body{flex:1}
+.step-label{font-weight:600;font-size:12px;margin-bottom:4px}
+.step-data{font-size:11px;color:var(--muted)}
+
+/* SVG diagrams */
+.diagram{background:#0a0f15;border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:12px;overflow-x:auto}
+
+/* Standards table */
+.std-table{width:100%;border-collapse:collapse;font-size:12px}
+.std-table th{text-align:left;padding:8px;color:var(--muted);border-bottom:1px solid var(--border);font-size:11px;font-weight:600;text-transform:uppercase}
+.std-table td{padding:8px;border-bottom:1px solid rgba(48,54,61,.4);vertical-align:top}
+.std-table tr:hover td{background:rgba(255,255,255,.02)}
+.check{color:var(--green)}
+.cross{color:var(--red)}
+
+/* Tab scenario chips */
+.scenario-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.chip{padding:4px 12px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid var(--border);color:var(--muted);transition:all .15s}
+.chip:hover,.chip.active{border-color:var(--blue);color:var(--blue);background:rgba(88,166,255,.08)}
+
+/* Spec ref */
+.spec-ref{font-size:11px;color:var(--muted);margin-bottom:14px}
+.spec-ref a{color:var(--blue)}
+
+.mt{margin-top:10px}
+.mb{margin-bottom:10px}
+.gap{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span>AuthZEN</span> Authorization API — Standards Lab (PoC)</div>
+  <div class="wasm-badge loading" id="wasm-badge"><div class="spin"></div> Loading WASM…</div>
+</header>
+
+<div class="nav-wrapper">
+  <nav id="main-nav">
+    <div class="tab active" onclick="showTab('overview',this)">Overview</div>
+    <div class="tab" onclick="showTab('evaluation',this)">Live Evaluation</div>
+    <div class="tab" onclick="showTab('rules',this)">Policy Rules</div>
+    <div class="tab" onclick="showTab('bulk',this)">Bulk Evaluations</div>
+    <div class="tab" onclick="showTab('asbridge',this)">AS Bridge</div>
+    <div class="tab" onclick="showTab('openfga',this)">OpenFGA</div>
+    <div class="tab" onclick="showTab('opa',this)">OPA / Rego</div>
+    <div class="tab" onclick="showTab('standards',this)">📋 Standards</div>
+  </nav>
+</div>
+
+<!-- ══ OVERVIEW ══════════════════════════════════════════════════════════ -->
+<div class="scene active" id="scene-overview">
+  <div class="card">
+    <div class="card-title">AuthZEN — The Missing Standard for Authorization Decisions</div>
+    <p class="spec-ref">
+      <a href="https://openid.net/wg/authzen/specifications/" target="_blank">OpenID AuthZEN Authorization API</a> &nbsp;·&nbsp;
+      <a href="https://datatracker.ietf.org/doc/draft-gazitt-oauth-authzen-issuance/" target="_blank">draft-gazitt-oauth-authzen-issuance</a> &nbsp;·&nbsp;
+      <a href="https://datatracker.ietf.org/doc/draft-gazitt-oauth-authzen-token-exchange/" target="_blank">draft-gazitt-oauth-authzen-token-exchange</a>
+    </p>
+    <p style="font-size:.875rem;color:var(--muted);margin-bottom:1rem">
+      Every authorization system makes a binary decision: <strong style="color:var(--text)">allow</strong> or <strong style="color:var(--text)">deny</strong>.
+      OAuth 2.0, OpenID Connect, and RFC 8693 Token Exchange all say the decision is "governed by local policy" — without defining what that policy looks like or how it's evaluated.
+      AuthZEN fills exactly that gap: a standard API for externalising the authorization decision to any Policy Decision Point.
+    </p>
+    <div class="diagram">
+      <svg viewBox="0 0 820 120" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr-ov" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+            <path d="M 0 0 L 6 3 L 0 6 Z" fill="#58a6ff"/>
+          </marker>
+          <marker id="arr-ov-green" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+            <path d="M 0 0 L 6 3 L 0 6 Z" fill="#3fb950"/>
+          </marker>
+        </defs>
+        <!-- Enforcement Point -->
+        <rect x="5" y="30" width="150" height="60" rx="6" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+        <text x="80" y="55" text-anchor="middle" font-size="10" fill="#58a6ff" font-family="sans-serif" font-weight="700">Policy Enforcement</text>
+        <text x="80" y="69" text-anchor="middle" font-size="9" fill="#7d8590" font-family="sans-serif">Point (PEP)</text>
+        <text x="80" y="82" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">Envoy / App / AS</text>
+        <!-- Arrow PEP → AuthZEN API -->
+        <line x1="155" y1="55" x2="273" y2="55" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr-ov)"/>
+        <text x="214" y="45" text-anchor="middle" font-size="8" fill="#58a6ff" font-family="monospace">POST /access/v1/evaluation</text>
+        <text x="214" y="56" text-anchor="middle" font-size="7" fill="#7d8590" font-family="monospace">{subject, resource, action}</text>
+        <!-- AuthZEN API -->
+        <rect x="278" y="20" width="160" height="80" rx="6" fill="#161b22" stroke="#ffa657" stroke-width="2"/>
+        <text x="358" y="46" text-anchor="middle" font-size="11" fill="#ffa657" font-family="sans-serif" font-weight="700">AuthZEN API</text>
+        <text x="358" y="60" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">Standard Interface</text>
+        <text x="358" y="73" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">/access/v1/evaluation</text>
+        <text x="358" y="86" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">/access/v1/evaluations</text>
+        <!-- Arrow AuthZEN → PDP -->
+        <line x1="438" y1="60" x2="556" y2="60" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr-ov-green)"/>
+        <text x="497" y="50" text-anchor="middle" font-size="7" fill="#3fb950" font-family="monospace">evaluate(five-tuple)</text>
+        <!-- PDP column: three boxes stacked -->
+        <rect x="561" y="10" width="120" height="35" rx="5" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="621" y="30" text-anchor="middle" font-size="9" fill="#3fb950" font-family="sans-serif" font-weight="700">In-Memory PDP</text>
+        <rect x="561" y="52" width="120" height="35" rx="5" fill="#161b22" stroke="#bc8cff" stroke-width="1.5"/>
+        <text x="621" y="72" text-anchor="middle" font-size="9" fill="#bc8cff" font-family="sans-serif" font-weight="700">OpenFGA</text>
+        <rect x="561" y="94" width="120" height="25" rx="5" fill="#161b22" stroke="#56d364" stroke-width="1.5"/>
+        <text x="621" y="111" text-anchor="middle" font-size="9" fill="#56d364" font-family="sans-serif" font-weight="700">OPA / Rego</text>
+        <!-- Response arrow -->
+        <line x1="681" y1="60" x2="720" y2="60" stroke="#ffa657" stroke-width="1.5" marker-end="url(#arr-ov)"/>
+        <rect x="725" y="38" width="90" height="44" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+        <text x="770" y="57" text-anchor="middle" font-size="9" fill="#3fb950" font-family="sans-serif" font-weight="700">{decision:</text>
+        <text x="770" y="71" text-anchor="middle" font-size="9" fill="#3fb950" font-family="sans-serif" font-weight="700">true/false}</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Five-tuple -->
+  <div class="card">
+    <div class="card-title">The Five-Tuple: AuthZEN's Mandatory Inputs</div>
+    <p style="font-size:.875rem;color:var(--muted);margin-bottom:1rem">
+      Every AuthZEN evaluation request carries five fields. The PDP evaluates these and returns a single boolean decision.
+    </p>
+    <div class="info-grid" style="grid-template-columns:repeat(5,1fr)">
+      <div class="info-box blue">
+        <div class="ibt">Subject</div>
+        <div class="ibv"><code>type</code> + <code>id</code><br><br>Who is requesting? A user, a workload, an AI agent SPIFFE ID.<br><br><em style="font-size:10px;color:var(--muted)">e.g. type: "workload"<br>id: "spiffe://..."</em></div>
+      </div>
+      <div class="info-box green">
+        <div class="ibt">Resource</div>
+        <div class="ibv"><code>type</code> + <code>id</code><br><br>What is being accessed? A document, a token audience, a tool endpoint.<br><br><em style="font-size:10px;color:var(--muted)">e.g. type: "token-audience"<br>id: "https://api.b.example"</em></div>
+      </div>
+      <div class="info-box orange">
+        <div class="ibt">Action</div>
+        <div class="ibv"><code>name</code><br><br>What operation? Read, write, invoke, exchange. Maps to an OpenFGA relation or OPA rule.<br><br><em style="font-size:10px;color:var(--muted)">e.g. name: "can_read"<br>name: "exchange"</em></div>
+      </div>
+      <div class="info-box purple">
+        <div class="ibt">Context</div>
+        <div class="ibv">Optional <code>properties</code><br><br>Environmental data: time, IP, risk score, tenant ID. Fed into the PDP for attribute-based rules.<br><br><em style="font-size:10px;color:var(--muted)">e.g. {ip: "10.0.0.1",<br>time: "09:00 UTC"}</em></div>
+      </div>
+      <div class="info-box cyan">
+        <div class="ibt">Decision</div>
+        <div class="ibv"><code>{ "decision": bool }</code><br><br>The PDP's single binary answer. Simple, consistent, swappable — any PDP backend returns the same shape.<br><br><em style="font-size:10px;color:var(--muted)">true = allow<br>false = deny</em></div>
+      </div>
+    </div>
+    <div class="callout ok">
+      <strong>Why this matters:</strong>
+      Every OAuth spec, every token exchange flow, every agent delegation chain makes an authorization decision — and each one currently defines it as "local policy: out of scope."
+      AuthZEN is the interoperable standard for that decision. Swap OPA for OpenFGA, swap WIMSE's InMemoryPDP for a cloud-hosted policy engine — the interface stays identical.
+    </div>
+  </div>
+
+  <!-- Analogies: Envoy + K8s -->
+  <div class="card">
+    <div class="card-title">Where You've Seen This Pattern Before</div>
+    <p style="font-size:.875rem;color:var(--muted);margin-bottom:1rem">
+      AuthZEN formalises a pattern that Envoy and Kubernetes already use — AuthZEN adds a standard API so any PDP can be plugged in.
+    </p>
+    <div class="info-grid c3">
+      <div class="info-box blue">
+        <div class="ibt">Envoy ext_authz filter</div>
+        <div class="ibv" style="font-size:11px;line-height:1.7">
+          Envoy intercepts every HTTP request and calls an external authorization service via gRPC or HTTP before forwarding it.
+          The authorization service is a PDP — it receives the request context (headers, path, method) and returns allow/deny.
+          <strong style="color:var(--text)">AuthZEN standardises exactly that PDP API</strong> — any Envoy ext_authz backend could expose <code>/access/v1/evaluation</code> instead of a custom proto.
+        </div>
+      </div>
+      <div class="info-box green">
+        <div class="ibt">Kubernetes Admission Controllers</div>
+        <div class="ibv" style="font-size:11px;line-height:1.7">
+          Kubernetes webhook admission controllers intercept API requests to <code>kube-apiserver</code> before they're persisted.
+          The webhook is a PDP — it receives the AdmissionRequest (subject, resource, operation) and returns allow/deny in an AdmissionResponse.
+          <strong style="color:var(--text)">AuthZEN is the same pattern at the OAuth layer</strong> — the token issuance request is the admission request, the AuthZEN PDP is the webhook.
+        </div>
+      </div>
+      <div class="info-box orange">
+        <div class="ibt">OAuth AS — the new enforcement point</div>
+        <div class="ibv" style="font-size:11px;line-height:1.7">
+          RFC 8693 Token Exchange and Txn-Token issuance have always had a PDP decision at their core — they just called it "local policy."
+          <a href="https://datatracker.ietf.org/doc/draft-gazitt-oauth-authzen-token-exchange/" target="_blank" style="color:var(--orange)">draft-gazitt-oauth-authzen-token-exchange</a> maps that decision to AuthZEN: subject=workload SPIFFE ID, resource=token audience, action=exchange.
+          <strong style="color:var(--text)">This PoC implements that mapping live in WASM.</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- What this PoC demonstrates -->
+  <div class="card">
+    <div class="card-title">What This PoC Demonstrates</div>
+    <div class="info-grid c2">
+      <div>
+        <div class="info-box blue mb">
+          <div class="ibt">Live in your browser (WASM)</div>
+          <div class="ibv" style="font-size:11px;line-height:1.7">All evaluation runs in Go compiled to WebAssembly — no server, no network call. The InMemoryPDP evaluates real AuthZEN five-tuple requests using glob-matched policy rules with priority-based conflict resolution.</div>
+        </div>
+        <div class="info-box green mb">
+          <div class="ibt">OpenFGA export → play.fga.dev</div>
+          <div class="ibv" style="font-size:11px;line-height:1.7">Any set of policy rules can be exported as an OpenFGA DSL model + YAML tuples. Copy and paste into <strong>play.fga.dev</strong> to run the same evaluation in OpenFGA's relationship-graph engine.</div>
+        </div>
+      </div>
+      <div>
+        <div class="info-box purple mb">
+          <div class="ibt">OPA/Rego export → play.openpolicyagent.org</div>
+          <div class="ibv" style="font-size:11px;line-height:1.7">Rules are exported as Rego v1 policy. The OPA tab generates the policy + a matching input document and attempts to open the <strong>OPA playground</strong> directly with the policy pre-loaded.</div>
+        </div>
+        <div class="info-box orange">
+          <div class="ibt">AS Bridge simulation</div>
+          <div class="ibv" style="font-size:11px;line-height:1.7">The AS Bridge tab simulates an OAuth Authorization Server calling AuthZEN during an RFC 8693 Token Exchange — showing the exact five-tuple mapping from <a href="https://datatracker.ietf.org/doc/draft-gazitt-oauth-authzen-token-exchange/" target="_blank" style="color:var(--orange)">draft-gazitt-oauth-authzen-token-exchange</a>.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LIVE EVALUATION ══════════════════════════════════════════════════ -->
+<div class="scene" id="scene-evaluation">
+  <div class="card">
+    <div class="card-title">Live AuthZEN Evaluation</div>
+    <p style="font-size:.875rem;color:var(--muted);margin-bottom:12px">
+      Construct a <code>POST /access/v1/evaluation</code> request and evaluate it against the in-memory PDP. All cryptographic operations run in Go/WASM — no server involved.
+    </p>
+
+    <!-- Scenario presets -->
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Quick scenarios</div>
+    <div class="scenario-chips">
+      <div class="chip" onclick="loadScenario('alice-read')">alice reads document</div>
+      <div class="chip" onclick="loadScenario('alice-edit-budget')">alice edits budget</div>
+      <div class="chip" onclick="loadScenario('bob-read-private')">bob reads private doc (deny)</div>
+      <div class="chip" onclick="loadScenario('orch-exchange')">orchestrator exchanges token</div>
+      <div class="chip" onclick="loadScenario('sub-agent-exchange-b')">sub-agent exchanges for cloud-b</div>
+      <div class="chip" onclick="loadScenario('sub-agent-exchange-c')">sub-agent exchanges for cloud-c (deny)</div>
+      <div class="chip" onclick="loadScenario('admin-any')">admin workload full access</div>
+    </div>
+
+    <!-- Subject -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <div class="ibt mb">Subject</div>
+        <div class="form-row"><div class="form-label">type</div><input type="text" id="ev-sub-type" value="user" placeholder="user, workload, …"></div>
+        <div class="form-row"><div class="form-label">id</div><input type="text" id="ev-sub-id" value="alice@example.com" placeholder="identity / SPIFFE ID"></div>
+      </div>
+      <div>
+        <div class="ibt mb">Resource</div>
+        <div class="form-row"><div class="form-label">type</div><input type="text" id="ev-res-type" value="document" placeholder="document, token-audience, tool, …"></div>
+        <div class="form-row"><div class="form-label">id</div><input type="text" id="ev-res-id" value="annual-report" placeholder="resource identifier"></div>
+      </div>
+    </div>
+    <div style="max-width:360px;margin-bottom:14px">
+      <div class="ibt mb">Action</div>
+      <div class="form-row"><div class="form-label">name</div><input type="text" id="ev-action" value="can_read" placeholder="can_read, can_edit, exchange, invoke, …"></div>
+    </div>
+
+    <div class="gap">
+      <button class="btn btn-primary" onclick="runEvaluation()">&#9654; Evaluate</button>
+      <button class="btn btn-secondary btn-sm" onclick="showRawRequest()">Show request JSON</button>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div class="card" id="ev-result" style="display:none">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <div style="font-size:.9rem;font-weight:700">Decision</div>
+      <div id="ev-badge"></div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px" id="ev-rule-info"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">REQUEST</div>
+        <pre id="ev-req-json"></pre>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">RESPONSE</div>
+        <pre id="ev-resp-json"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ POLICY RULES ══════════════════════════════════════════════════════ -->
+<div class="scene" id="scene-rules">
+  <div class="card">
+    <div class="card-title">Policy Rules Editor</div>
+    <p style="font-size:.875rem;color:var(--muted);margin-bottom:12px">
+      Edit the in-memory PDP rules. Changes immediately affect evaluations in all tabs. Rules are evaluated by priority (higher = first); ties broken by position (later wins). No match → default deny.
+    </p>
+    <div class="gap mb">
+      <button class="btn btn-secondary btn-sm" onclick="resetRules()">↺ Reset to defaults</button>
+      <button class="btn btn-sm" style="background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.4)" onclick="showAddRule()">+ Add rule</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="rules-table" id="rules-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Label</th><th>Subject type</th><th>Subject ID (glob)</th>
+            <th>Resource type</th><th>Resource ID (glob)</th><th>Action (glob)</th>
+            <th>Decision</th><th>Priority</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="rules-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add rule form -->
+  <div class="card" id="add-rule-form" style="display:none">
+    <div class="card-title">Add New Rule</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <div class="form-row"><div class="form-label">Label</div><input type="text" id="nr-label" placeholder="e.g. alice can read reports"></div>
+        <div class="form-row"><div class="form-label">Subject type</div><input type="text" id="nr-sub-type" value="user" placeholder="user, workload, *"></div>
+        <div class="form-row"><div class="form-label">Subject ID</div><input type="text" id="nr-sub-id" placeholder="alice@example.com or spiffe://*/path/* or *"></div>
+        <div class="form-row"><div class="form-label">Resource type</div><input type="text" id="nr-res-type" value="document" placeholder="document, token-audience, *"></div>
+      </div>
+      <div>
+        <div class="form-row"><div class="form-label">Resource ID</div><input type="text" id="nr-res-id" placeholder="report, budget-*, *"></div>
+        <div class="form-row"><div class="form-label">Action</div><input type="text" id="nr-action" placeholder="can_read, exchange, *"></div>
+        <div class="form-row">
+          <div class="form-label">Decision</div>
+          <select id="nr-decision"><option value="true">allow</option><option value="false">deny</option></select>
+        </div>
+        <div class="form-row"><div class="form-label">Priority</div><input type="text" id="nr-priority" value="10" placeholder="10"></div>
+      </div>
+    </div>
+    <div class="gap">
+      <button class="btn btn-green" onclick="addRule()">Add rule</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('add-rule-form').style.display='none'">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Export -->
+  <div class="card">
+    <div class="card-title">Export Policy</div>
+    <p style="font-size:.875rem;color:var(--muted);margin-bottom:12px">
+      Export the current rules to OpenFGA DSL or OPA Rego. Open the respective playground tab to run them interactively.
+    </p>
+    <div class="gap">
+      <button class="btn btn-purple" onclick="showTab('openfga',document.querySelector('.tab:nth-child(6))'))">Export → OpenFGA tab</button>
+      <button class="btn" style="background:rgba(57,211,83,.15);color:var(--cyan);border:1px solid rgba(57,211,83,.3)" onclick="showTab('opa',document.querySelector('.tab:nth-child(7)'))">Export → OPA tab</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ BULK EVALUATIONS ══════════════════════════════════════════════════ -->
+<div class="scene" id="scene-bulk">
+  <div class="card">
+    <div class="card-title">Bulk Evaluations — <code>POST /access/v1/evaluations</code></div>
+    <p style="font-size:.875rem;color:var(--muted);margin-bottom:12px">
+      AuthZEN §5.2: a single request carries a shared Subject plus an array of (Resource, Action) pairs.
+      The PDP evaluates each independently and returns an array of decisions.
+      Useful for permission checks across multiple resources in one round-trip.
+    </p>
+
+    <div class="ibt mb">Shared Subject</div>
+    <div style="max-width:500px;margin-bottom:14px">
+      <div class="form-row"><div class="form-label">type</div><input type="text" id="bulk-sub-type" value="user"></div>
+      <div class="form-row"><div class="form-label">id</div><input type="text" id="bulk-sub-id" value="alice@example.com"></div>
+    </div>
+
+    <div class="ibt mb">Evaluations (Resource type · Resource ID · Action)</div>
+    <div id="bulk-items"></div>
+    <div class="gap mt mb">
+      <button class="btn btn-secondary btn-sm" onclick="addBulkItem()">+ Add evaluation</button>
+      <button class="btn btn-secondary btn-sm" onclick="loadBulkPreset()">Load preset</button>
+      <button class="btn btn-primary" onclick="runBulk()">&#9654; Evaluate all</button>
+    </div>
+  </div>
+
+  <div class="card" id="bulk-result" style="display:none">
+    <div class="card-title">Results</div>
+    <table class="rules-table" id="bulk-result-table">
+      <thead><tr><th>#</th><th>Resource type</th><th>Resource ID</th><th>Action</th><th>Decision</th><th>Matched rule</th></tr></thead>
+      <tbody id="bulk-result-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ AS BRIDGE ════════════════════════════════════════════════════════ -->
+<div class="scene" id="scene-asbridge">
+  <div class="card">
+    <div class="card-title">AS Bridge — OAuth Token Exchange → AuthZEN</div>
+    <p class="spec-ref">
+      Implements the mapping defined in <a href="https://datatracker.ietf.org/doc/draft-gazitt-oauth-authzen-token-exchange/" target="_blank">draft-gazitt-oauth-authzen-token-exchange-00</a>
+    </p>
+    <p style="font-size:.875rem;color:var(--muted);margin-bottom:1rem">
+      When an Authorization Server receives an RFC 8693 Token Exchange request, it must decide whether to issue the requested token.
+      This simulation shows how the AS constructs an AuthZEN evaluation request from the exchange parameters
+      and calls the PDP to get its decision — replacing the "local policy" black box with a standard API call.
+    </p>
+    <div class="callout" style="margin-bottom:14px">
+      <strong>Five-tuple mapping (per draft §3):</strong>
+      <code>subject_token.sub</code> → <code>subject.id</code> &nbsp;·&nbsp;
+      <code>audience</code> → <code>resource.id</code> &nbsp;·&nbsp;
+      <code>"exchange"</code> → <code>action.name</code> &nbsp;·&nbsp;
+      subject type = <code>"workload"</code> &nbsp;·&nbsp;
+      resource type = <code>"token-audience"</code>
+    </div>
+
+    <!-- Presets -->
+    <div class="scenario-chips mb">
+      <div class="chip" onclick="loadASPreset('orch-allowed')">orchestrator → cloud-b (allow)</div>
+      <div class="chip" onclick="loadASPreset('sub-agent-allowed')">sub-agent → cloud-b (allow)</div>
+      <div class="chip" onclick="loadASPreset('sub-agent-denied')">sub-agent → cloud-c (deny)</div>
+      <div class="chip" onclick="loadASPreset('unknown-denied')">unknown workload (deny)</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div>
+        <div class="form-row"><div class="form-label">Subject token</div><textarea id="as-token" rows="3" placeholder="Paste a JWT here — the sub claim will be extracted (no signature validation, simulation only)">eyJhbGciOiJFUzI1NiIsInR5cCI6ImFnZW50K2p3dCJ9.eyJzdWIiOiJzcGlmZmU6Ly9tZXNoLmV4YW1wbGUvYWdlbnRzL29yY2hlc3RyYXRvciIsImlzcyI6Imh0dHBzOi8vaWRwLm1lc2guZXhhbXBsZSIsImF1ZCI6WyJodHRwczovL2FzLm1lc2guZXhhbXBsZSJdLCJleHAiOjk5OTk5OTk5OTl9.sig</textarea></div>
+      </div>
+      <div>
+        <div class="form-row"><div class="form-label">Target audience</div><input type="text" id="as-audience" value="https://api.cloud-b.example/orders"></div>
+        <div class="form-row"><div class="form-label">SPIFFE ID (override)</div><input type="text" id="as-spiffe" placeholder="Leave blank to extract from token sub claim"></div>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="runASBridge()">&#9654; Simulate Token Exchange</button>
+  </div>
+
+  <!-- Steps -->
+  <div class="card" id="as-result" style="display:none">
+    <div class="card-title">Authorization Server Flow</div>
+    <div class="step-list" id="as-steps"></div>
+  </div>
+</div>
+
+<!-- ══ OPENFGA ══════════════════════════════════════════════════════════ -->
+<div class="scene" id="scene-openfga">
+  <div class="card">
+    <div class="card-title">OpenFGA — Relationship-Graph PDP Backend</div>
+    <p class="spec-ref">
+      <a href="https://openfga.dev/docs/interacting/authzen" target="_blank">openfga.dev/docs/interacting/authzen</a> &nbsp;·&nbsp;
+      <a href="https://play.fga.dev/" target="_blank">play.fga.dev</a> &nbsp;·&nbsp;
+      OpenFGA DSL schema 1.1
+    </p>
+    <p style="font-size:.875rem;color:var(--muted);margin-bottom:1rem">
+      OpenFGA exposes a built-in AuthZEN-compatible endpoint at <code>POST /stores/{id}/access/v1/evaluation</code>.
+      The same five-tuple request you send to this PoC's in-memory PDP can be sent directly to OpenFGA — the difference is the backend evaluates using a relationship graph (Google Zanzibar model) rather than glob rules.
+    </p>
+    <div class="callout">
+      <strong>AuthZEN five-tuple → OpenFGA triple:</strong>
+      <code>subject.type:subject.id</code> → <strong>user</strong> &nbsp;·&nbsp;
+      <code>action.name</code> → <strong>relation</strong> &nbsp;·&nbsp;
+      <code>resource.type:resource.id</code> → <strong>object</strong>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Generate OpenFGA Model from Current Rules</div>
+    <p style="font-size:.875rem;color:var(--muted);margin-bottom:12px">
+      The current InMemoryPDP rules are exported as an OpenFGA DSL model and YAML tuple set.
+      Copy both into <a href="https://play.fga.dev/" target="_blank">play.fga.dev</a> to run the same evaluations in OpenFGA.
+    </p>
+    <button class="btn btn-purple mb" onclick="generateFGAExport()">&#9654; Generate OpenFGA Export</button>
+
+    <div id="fga-export-section" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div class="ibt">Authorization Model (DSL)</div>
+            <button class="btn btn-secondary btn-sm" onclick="copyText('fga-model-code','Copy model')">Copy model</button>
+          </div>
+          <pre id="fga-model-code"></pre>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div class="ibt">Tuples (YAML)</div>
+            <button class="btn btn-secondary btn-sm" onclick="copyText('fga-tuples-code','Copy tuples')">Copy tuples</button>
+          </div>
+          <pre id="fga-tuples-code"></pre>
+        </div>
+      </div>
+
+      <div class="callout ok">
+        <strong>Steps to run in play.fga.dev:</strong><br>
+        1. Go to <a href="https://play.fga.dev/" target="_blank">play.fga.dev</a> → create a new store<br>
+        2. Paste the Authorization Model DSL into the model editor<br>
+        3. In the Tuples section, add the tuples above<br>
+        4. In the Check section, construct a check: <code>user:{subject.id} → {action.name} → {resource.type}:{resource.id}</code><br>
+        5. The result should match the decision from the Live Evaluation tab
+      </div>
+
+      <div class="card" style="background:#0a0f15;margin-top:12px">
+        <div class="card-title" style="font-size:.85rem">Sample AuthZEN request for OpenFGA's endpoint</div>
+        <pre id="fga-sample-req"></pre>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">
+          Send this to: <code>POST https://your-openfga-instance/stores/{store-id}/access/v1/evaluation</code><br>
+          OpenFGA maps it internally to a <code>Check</code> request against the relationship graph.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ OPA / REGO ════════════════════════════════════════════════════════ -->
+<div class="scene" id="scene-opa">
+  <div class="card">
+    <div class="card-title">OPA — Open Policy Agent Rego Backend</div>
+    <p class="spec-ref">
+      <a href="https://play.openpolicyagent.org/" target="_blank">play.openpolicyagent.org</a> &nbsp;·&nbsp;
+      <a href="https://www.openpolicyagent.org/docs/latest/policy-language/" target="_blank">Rego v1 language reference</a>
+    </p>
+    <p style="font-size:.875rem;color:var(--muted);margin-bottom:1rem">
+      OPA evaluates AuthZEN five-tuple requests as Rego policy input. The generated policy accepts the same
+      <code>{ subject, resource, action }</code> structure and returns <code>decision := true/false</code>.
+      Use the OPA playground to test the generated policy interactively.
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Generate Rego Policy from Current Rules</div>
+    <div class="gap mb">
+      <button class="btn btn-green" onclick="generateRegoExport()">&#9654; Generate Rego Policy</button>
+      <button class="btn btn-primary" id="opa-playground-btn" style="display:none" onclick="openOPAPlayground()">Open in OPA Playground ↗</button>
+    </div>
+
+    <div id="rego-export-section" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div class="ibt">Rego Policy (authzen.rego)</div>
+        <button class="btn btn-secondary btn-sm" onclick="copyText('rego-code','Copy policy')">Copy policy</button>
+      </div>
+      <pre id="rego-code" style="max-height:320px;overflow-y:auto"></pre>
+
+      <div class="card" style="background:#0a0f15;margin-top:12px">
+        <div class="card-title" style="font-size:.85rem">Sample Input (AuthZEN five-tuple)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+          <div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Input JSON</div>
+            <textarea id="opa-input-json" rows="8" style="font-size:11px">{
+  "subject": {
+    "type": "user",
+    "id": "alice@example.com"
+  },
+  "resource": {
+    "type": "document",
+    "id": "budget-2024"
+  },
+  "action": {
+    "name": "can_edit"
+  }
+}</textarea>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Evaluate locally (WASM)</div>
+            <button class="btn btn-primary btn-sm mt" onclick="evalOPAInput()">&#9654; Evaluate this input</button>
+            <div id="opa-local-result" style="margin-top:10px;font-size:12px"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout ok mt">
+        <strong>Steps to test in play.openpolicyagent.org:</strong><br>
+        1. Click <strong>Open in OPA Playground ↗</strong> (attempts automatic share) — or copy the policy manually<br>
+        2. Go to <a href="https://play.openpolicyagent.org/" target="_blank">play.openpolicyagent.org</a> → paste the policy<br>
+        3. Set Input to the JSON above (or customise for any scenario from Live Evaluation)<br>
+        4. Evaluate — <code>data.authzen.decision</code> should match the WASM result
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ STANDARDS ════════════════════════════════════════════════════════ -->
+<div class="scene" id="scene-standards">
+  <div class="card">
+    <div class="card-title">Standards Tracker</div>
+    <p class="spec-ref">
+      Last checked: <code>2026-08-07</code> &nbsp;·&nbsp;
+      <a href="https://github.com/jralmaraz/authzen-poc/blob/main/standards-baseline.json" target="_blank">standards-baseline.json</a> &nbsp;·&nbsp;
+      <a href="https://github.com/jralmaraz/authzen-poc/blob/main/.github/workflows/standards-tracker.yml" target="_blank">standards-tracker.yml</a>
+    </p>
+    <table class="std-table">
+      <thead>
+        <tr>
+          <th>Standard</th><th>WG / Body</th><th>Status</th><th>PoC impl.</th>
+          <th>Rev</th><th>Files</th><th>Impact</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><a href="https://openid.net/wg/authzen/specifications/" target="_blank" style="color:var(--blue)">AuthZEN Authorization API</a></td>
+          <td style="font-size:11px">OpenID Foundation</td>
+          <td><span style="color:var(--yellow)">● WG Draft</span></td>
+          <td><span class="check">✓ Implemented</span></td>
+          <td><code>2.0-ID2</code></td>
+          <td style="font-size:10px;color:var(--muted)"><code>pkg/authzen/types.go</code>, <code>handler.go</code>, <code>pdp.go</code></td>
+          <td style="font-size:11px">Core spec — five-tuple types, <code>/access/v1/evaluation</code>, <code>/access/v1/evaluations</code> endpoints, decision response shape</td>
+        </tr>
+        <tr style="background:rgba(255,255,255,.02)">
+          <td><a href="https://datatracker.ietf.org/doc/draft-gazitt-oauth-authzen-issuance/" target="_blank" style="color:var(--blue)">AuthZEN Profile for OAuth 2.0 Token Issuance</a></td>
+          <td style="font-size:11px">IETF OAuth WG</td>
+          <td><span style="color:var(--muted)">● Individual draft</span></td>
+          <td><span style="color:var(--muted)">◌ Monitoring</span></td>
+          <td><code>-00</code></td>
+          <td style="font-size:10px;color:var(--muted)"><code>pkg/authzen/pdp.go</code></td>
+          <td style="font-size:11px">Defines the canonical AuthZEN five-tuple for OAuth token issuance decisions. Our InMemoryPDP implements the decision evaluation model this draft formalises.</td>
+        </tr>
+        <tr>
+          <td><a href="https://datatracker.ietf.org/doc/draft-gazitt-oauth-authzen-token-exchange/" target="_blank" style="color:var(--blue)">AuthZEN Binding for OAuth 2.0 Token Exchange</a></td>
+          <td style="font-size:11px">IETF OAuth WG</td>
+          <td><span style="color:var(--muted)">● Individual draft</span></td>
+          <td><span class="check">✓ Implemented (AS Bridge)</span></td>
+          <td><code>-00</code></td>
+          <td style="font-size:10px;color:var(--muted)"><code>cmd/demo-wasm/main.go</code></td>
+          <td style="font-size:11px">The AS Bridge tab implements the exact five-tuple mapping: <code>sub</code>→subject.id, <code>audience</code>→resource.id, <code>"exchange"</code>→action.name</td>
+        </tr>
+        <tr style="background:rgba(255,255,255,.02)">
+          <td><a href="https://datatracker.ietf.org/doc/html/rfc8693" target="_blank" style="color:var(--blue)">RFC 8693 — OAuth 2.0 Token Exchange</a></td>
+          <td style="font-size:11px">IETF OAuth WG</td>
+          <td><span style="color:var(--green)">● Published RFC</span></td>
+          <td><span class="check">✓ Implemented (AS Bridge)</span></td>
+          <td><code>RFC</code></td>
+          <td style="font-size:10px;color:var(--muted)"><code>cmd/demo-wasm/main.go</code></td>
+          <td style="font-size:11px">Foundational. AS Bridge simulates the exact RFC 8693 request format (<code>grant_type</code>, <code>subject_token</code>, <code>audience</code>). AuthZEN fills the "governed by local policy" gap.</td>
+        </tr>
+        <tr>
+          <td><a href="https://openfga.dev/docs/configuration-language" target="_blank" style="color:var(--blue)">OpenFGA DSL — Authorization Model</a></td>
+          <td style="font-size:11px">OpenFGA / CNCF</td>
+          <td><span style="color:var(--green)">● Stable</span></td>
+          <td><span class="check">✓ Export implemented</span></td>
+          <td><code>1.1</code></td>
+          <td style="font-size:10px;color:var(--muted)"><code>pkg/authzen/export.go</code></td>
+          <td style="font-size:11px"><code>ToOpenFGA()</code> generates schema 1.1 DSL model + YAML tuples from InMemoryPDP rules. OpenFGA tab links to play.fga.dev.</td>
+        </tr>
+        <tr style="background:rgba(255,255,255,.02)">
+          <td><a href="https://www.openpolicyagent.org/docs/latest/policy-language/" target="_blank" style="color:var(--blue)">OPA Rego — Policy Language</a></td>
+          <td style="font-size:11px">CNCF OPA</td>
+          <td><span style="color:var(--green)">● Stable (v1)</span></td>
+          <td><span class="check">✓ Export implemented</span></td>
+          <td><code>v1</code></td>
+          <td style="font-size:10px;color:var(--muted)"><code>pkg/authzen/export.go</code></td>
+          <td style="font-size:11px"><code>ToRego()</code> generates Rego v1 policy from InMemoryPDP rules. OPA tab generates policy + tries to open play.openpolicyagent.org with it pre-loaded.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Automated Standards Tracking</div>
+    <div class="info-grid c3">
+      <div class="info-box blue">
+        <div class="ibt">Daily cron</div>
+        <div class="ibv" style="font-size:11px;line-height:1.6">GitHub Actions checks IETF Datatracker daily for <code>authzen-issuance</code> and <code>authzen-token-exchange</code> revisions. Opens a labelled issue when any revision changes.</div>
+      </div>
+      <div class="info-box green">
+        <div class="ibt">OpenID AuthZEN spec</div>
+        <div class="ibv" style="font-size:11px;line-height:1.6">Checks the <a href="https://github.com/openid/authzen" target="_blank" style="color:var(--green)">openid/authzen GitHub repo</a> for new releases/tags. The AuthZEN spec is maintained on GitHub, not IETF Datatracker.</div>
+      </div>
+      <div class="info-box orange">
+        <div class="ibt">Same pattern as wimse projects</div>
+        <div class="ibv" style="font-size:11px;line-height:1.6">Same <code>standards-baseline.json</code> + <code>check_standards.py</code> pattern as wimse-agent-fabric and wimse-identity-fabric. Consistent issue format across all three repos.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="wasm_exec.js"></script>
+<script>
+// ── WASM bootstrap ──────────────────────────────────────────────────────
+const go = new Go();
+let wasmReady = false;
+
+window.onAuthzenReady = () => {
+  wasmReady = true;
+  const b = document.getElementById('wasm-badge');
+  b.className = 'wasm-badge ready';
+  b.innerHTML = '● AuthZEN WASM ready';
+  renderRulesTable(JSON.parse(authzenInit()));
+  initBulkItems();
+};
+
+WebAssembly.instantiateStreaming(fetch('authzen.wasm'), go.importObject)
+  .then(r => go.run(r.instance))
+  .catch(e => {
+    document.getElementById('wasm-badge').innerHTML = '✗ WASM failed';
+    console.error(e);
+  });
+
+// ── Tab navigation ──────────────────────────────────────────────────────
+function showTab(id, el) {
+  document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('scene-' + id).classList.add('active');
+  if (el && el.classList) el.classList.add('active');
+  else {
+    document.querySelectorAll('.tab').forEach(t => {
+      if (t.getAttribute('onclick') && t.getAttribute('onclick').includes("'"+id+"'")) t.classList.add('active');
+    });
+  }
+  // Refresh exports when switching to those tabs
+  if (id === 'openfga') autoGenerateFGA();
+  if (id === 'opa') autoGenerateRego();
+  if (id === 'rules') renderRulesTable(JSON.parse(authzenListRules()));
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────
+function requireWasm() {
+  if (!wasmReady) { alert('WASM not loaded yet — please wait a moment.'); return false; }
+  return true;
+}
+
+function copyText(elemId, label) {
+  const el = document.getElementById(elemId);
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    const btn = event.target; btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = label, 2000);
+  });
+}
+
+// ── LIVE EVALUATION ────────────────────────────────────────────────────
+const SCENARIOS = {
+  'alice-read':          ['user', 'alice@example.com', 'document', 'annual-report', 'can_read'],
+  'alice-edit-budget':   ['user', 'alice@example.com', 'document', 'budget-2024', 'can_edit'],
+  'bob-read-private':    ['user', 'bob@example.com', 'document', 'classified-report', 'can_read'],
+  'orch-exchange':       ['workload', 'spiffe://mesh.example/agents/orchestrator', 'token-audience', 'https://api.cloud-b.example/orders', 'exchange'],
+  'sub-agent-exchange-b':['workload', 'spiffe://mesh.example/agents/sub-agent', 'token-audience', 'https://api.cloud-b.example/search', 'exchange'],
+  'sub-agent-exchange-c':['workload', 'spiffe://mesh.example/agents/sub-agent', 'token-audience', 'https://api.cloud-c.example/data', 'exchange'],
+  'admin-any':           ['workload', 'spiffe://corp.example/admin/billing-svc', 'secret', 'payment-key', 'read'],
+};
+
+function loadScenario(key) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  const [st, sid, rt, rid, act] = SCENARIOS[key];
+  document.getElementById('ev-sub-type').value = st;
+  document.getElementById('ev-sub-id').value = sid;
+  document.getElementById('ev-res-type').value = rt;
+  document.getElementById('ev-res-id').value = rid;
+  document.getElementById('ev-action').value = act;
+  document.getElementById('ev-result').style.display = 'none';
+}
+
+function buildEvalReq() {
+  return {
+    subject:  { type: v('ev-sub-type'), id: v('ev-sub-id') },
+    resource: { type: v('ev-res-type'), id: v('ev-res-id') },
+    action:   { name: v('ev-action') },
+  };
+}
+
+function v(id) { return document.getElementById(id).value.trim(); }
+
+function runEvaluation() {
+  if (!requireWasm()) return;
+  const req = buildEvalReq();
+  const raw = authzenEvaluate(JSON.stringify(req));
+  const res = JSON.parse(raw);
+  if (res.error) { alert('Error: ' + res.error); return; }
+
+  document.getElementById('ev-result').style.display = 'block';
+  document.getElementById('ev-badge').innerHTML = res.decision
+    ? '<span class="badge-allow">✓ ALLOW</span>'
+    : '<span class="badge-deny">✗ DENY</span>';
+
+  if (res.matched_rule) {
+    document.getElementById('ev-rule-info').innerHTML =
+      `Matched rule #${res.matched_rule.index}: <strong>${res.matched_rule.label}</strong>`;
+  } else {
+    document.getElementById('ev-rule-info').innerHTML = '<em>No rule matched — default deny</em>';
+  }
+
+  document.getElementById('ev-req-json').textContent = JSON.stringify(req, null, 2);
+  document.getElementById('ev-resp-json').textContent = JSON.stringify({ decision: res.decision }, null, 2);
+}
+
+function showRawRequest() {
+  const req = buildEvalReq();
+  alert(JSON.stringify(req, null, 2));
+}
+
+// ── POLICY RULES ───────────────────────────────────────────────────────
+function renderRulesTable(rules) {
+  const tbody = document.getElementById('rules-tbody');
+  tbody.innerHTML = '';
+  rules.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--muted)">${i}</td>
+      <td style="max-width:180px;white-space:normal">${r.label || '—'}</td>
+      <td><code>${r.subject_type}</code></td>
+      <td><code>${r.subject_id}</code></td>
+      <td><code>${r.resource_type}</code></td>
+      <td><code>${r.resource_id}</code></td>
+      <td><code>${r.action_name}</code></td>
+      <td class="${r.decision ? 'dec-allow' : 'dec-deny'}">${r.decision ? 'allow' : 'deny'}</td>
+      <td>${r.priority}</td>
+      <td><button class="btn btn-sm" style="background:rgba(248,81,73,.15);color:var(--red);border:1px solid rgba(248,81,73,.3)" onclick="removeRule(${i})">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function removeRule(i) {
+  if (!requireWasm()) return;
+  const raw = authzenRemoveRule(i);
+  const res = JSON.parse(raw);
+  if (res.error) { alert(res.error); return; }
+  renderRulesTable(res);
+}
+
+function resetRules() {
+  if (!requireWasm()) return;
+  renderRulesTable(JSON.parse(authzenInit()));
+}
+
+function showAddRule() {
+  document.getElementById('add-rule-form').style.display = 'block';
+}
+
+function addRule() {
+  if (!requireWasm()) return;
+  const rule = {
+    label: document.getElementById('nr-label').value,
+    subject_type: document.getElementById('nr-sub-type').value,
+    subject_id: document.getElementById('nr-sub-id').value,
+    resource_type: document.getElementById('nr-res-type').value,
+    resource_id: document.getElementById('nr-res-id').value,
+    action_name: document.getElementById('nr-action').value,
+    decision: document.getElementById('nr-decision').value === 'true',
+    priority: parseInt(document.getElementById('nr-priority').value) || 10,
+  };
+  const raw = authzenAddRule(JSON.stringify(rule));
+  const res = JSON.parse(raw);
+  if (res.error) { alert(res.error); return; }
+  renderRulesTable(res);
+  document.getElementById('add-rule-form').style.display = 'none';
+}
+
+// ── BULK EVALUATIONS ───────────────────────────────────────────────────
+let bulkItems = [];
+function initBulkItems() {
+  bulkItems = [
+    { rt: 'document', rid: 'annual-report', action: 'can_read' },
+    { rt: 'document', rid: 'budget-2024', action: 'can_edit' },
+    { rt: 'document', rid: 'classified-report', action: 'can_read' },
+  ];
+  renderBulkItems();
+}
+
+function renderBulkItems() {
+  const el = document.getElementById('bulk-items');
+  el.innerHTML = '';
+  bulkItems.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:grid;grid-template-columns:1fr 2fr 1.5fr auto;gap:8px;margin-bottom:6px;align-items:center';
+    row.innerHTML = `
+      <input type="text" value="${item.rt}" onchange="bulkItems[${i}].rt=this.value" placeholder="resource type">
+      <input type="text" value="${item.rid}" onchange="bulkItems[${i}].rid=this.value" placeholder="resource id">
+      <input type="text" value="${item.action}" onchange="bulkItems[${i}].action=this.value" placeholder="action">
+      <button class="btn btn-sm" style="background:rgba(248,81,73,.1);color:var(--red);border:1px solid rgba(248,81,73,.3)" onclick="removeBulkItem(${i})">✕</button>
+    `;
+    el.appendChild(row);
+  });
+}
+
+function addBulkItem() {
+  bulkItems.push({ rt: 'document', rid: '', action: 'can_read' });
+  renderBulkItems();
+}
+
+function removeBulkItem(i) {
+  bulkItems.splice(i, 1);
+  renderBulkItems();
+}
+
+function loadBulkPreset() {
+  document.getElementById('bulk-sub-type').value = 'workload';
+  document.getElementById('bulk-sub-id').value = 'spiffe://mesh.example/agents/orchestrator';
+  bulkItems = [
+    { rt: 'token-audience', rid: 'https://api.cloud-b.example/orders', action: 'exchange' },
+    { rt: 'token-audience', rid: 'https://api.cloud-c.example/data', action: 'exchange' },
+    { rt: 'tool', rid: 'search-api', action: 'invoke' },
+    { rt: 'tool', rid: 'admin-console', action: 'invoke' },
+  ];
+  renderBulkItems();
+}
+
+function runBulk() {
+  if (!requireWasm()) return;
+  const req = {
+    subject: { type: document.getElementById('bulk-sub-type').value, id: document.getElementById('bulk-sub-id').value },
+    evaluations: bulkItems.map(item => ({
+      resource: { type: item.rt, id: item.rid },
+      action: { name: item.action },
+    })),
+  };
+  const raw = authzenEvaluateAll(JSON.stringify(req));
+  const res = JSON.parse(raw);
+  if (res.error) { alert(res.error); return; }
+
+  document.getElementById('bulk-result').style.display = 'block';
+  const tbody = document.getElementById('bulk-result-tbody');
+  tbody.innerHTML = '';
+  res.evaluations.forEach((r, i) => {
+    const item = bulkItems[i];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i + 1}</td>
+      <td><code>${item.rt}</code></td>
+      <td><code>${item.rid}</code></td>
+      <td><code>${item.action}</code></td>
+      <td>${r.decision ? '<span class="badge-allow">✓ ALLOW</span>' : '<span class="badge-deny">✗ DENY</span>'}</td>
+      <td style="font-size:11px;color:var(--muted)">${r.matched_rule ? r.matched_rule.label : 'default deny'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── AS BRIDGE ──────────────────────────────────────────────────────────
+const AS_PRESETS = {
+  'orch-allowed': {
+    token: 'eyJhbGciOiJFUzI1NiIsInR5cCI6ImFnZW50K2p3dCJ9.eyJzdWIiOiJzcGlmZmU6Ly9tZXNoLmV4YW1wbGUvYWdlbnRzL29yY2hlc3RyYXRvciIsImlzcyI6Imh0dHBzOi8vaWRwLm1lc2guZXhhbXBsZSIsImV4cCI6OTk5OTk5OTk5OX0.sig',
+    audience: 'https://api.cloud-b.example/orders',
+    spiffe: ''
+  },
+  'sub-agent-allowed': {
+    token: '',
+    audience: 'https://api.cloud-b.example/search',
+    spiffe: 'spiffe://mesh.example/agents/sub-agent'
+  },
+  'sub-agent-denied': {
+    token: '',
+    audience: 'https://api.cloud-c.example/data',
+    spiffe: 'spiffe://mesh.example/agents/sub-agent'
+  },
+  'unknown-denied': {
+    token: '',
+    audience: 'https://api.cloud-b.example/orders',
+    spiffe: 'spiffe://external-domain.example/unknown-service'
+  },
+};
+
+function loadASPreset(key) {
+  const p = AS_PRESETS[key];
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  if (p.token) document.getElementById('as-token').value = p.token;
+  document.getElementById('as-audience').value = p.audience;
+  document.getElementById('as-spiffe').value = p.spiffe;
+  document.getElementById('as-result').style.display = 'none';
+}
+
+function runASBridge() {
+  if (!requireWasm()) return;
+  const input = {
+    subject_token: document.getElementById('as-token').value.trim(),
+    target_audience: document.getElementById('as-audience').value.trim(),
+    subject_spiffe_id: document.getElementById('as-spiffe').value.trim(),
+  };
+  const raw = authzenSimulateAS(JSON.stringify(input));
+  const res = JSON.parse(raw);
+  if (res.error) { alert(res.error); return; }
+
+  document.getElementById('as-result').style.display = 'block';
+  const container = document.getElementById('as-steps');
+  container.innerHTML = '';
+
+  res.steps.forEach((step, i) => {
+    const isLast = i === res.steps.length - 1;
+    const isDecide = i === 3;
+    const div = document.createElement('div');
+    div.className = 'step done';
+    div.innerHTML = `
+      <div class="step-num">${step.step}</div>
+      <div class="step-body">
+        <div class="step-label" style="color:${isLast ? (res.decision ? 'var(--green)' : 'var(--red)') : 'var(--text)'}">${step.label}</div>
+        <pre style="margin-top:6px;font-size:11px;max-height:120px;overflow-y:auto">${JSON.stringify(step.data, null, 2)}</pre>
+        ${isDecide ? `<div style="margin-top:6px">${res.decision ? '<span class="badge-allow">✓ ALLOW</span>' : '<span class="badge-deny">✗ DENY</span>'}</div>` : ''}
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+// ── OPENFGA ────────────────────────────────────────────────────────────
+function generateFGAExport() {
+  if (!requireWasm()) return;
+  const raw = authzenToOpenFGA();
+  const res = JSON.parse(raw);
+  document.getElementById('fga-export-section').style.display = 'block';
+  document.getElementById('fga-model-code').textContent = res.model;
+  document.getElementById('fga-tuples-code').textContent = res.tuples;
+
+  const sample = {
+    subject: { type: 'workload', id: 'spiffe://mesh.example/agents/orchestrator' },
+    resource: { type: 'token_audience', id: 'https://api.cloud-b.example/orders' },
+    action: { name: 'exchange' }
+  };
+  document.getElementById('fga-sample-req').textContent = JSON.stringify(sample, null, 2);
+}
+
+function autoGenerateFGA() {
+  if (wasmReady) generateFGAExport();
+}
+
+// ── OPA / REGO ─────────────────────────────────────────────────────────
+let currentRegoPolicy = '';
+
+function generateRegoExport() {
+  if (!requireWasm()) return;
+  currentRegoPolicy = authzenToRego();
+  document.getElementById('rego-code').textContent = currentRegoPolicy;
+  document.getElementById('rego-export-section').style.display = 'block';
+  document.getElementById('opa-playground-btn').style.display = 'inline-flex';
+}
+
+function autoGenerateRego() {
+  if (wasmReady) generateRegoExport();
+}
+
+async function openOPAPlayground() {
+  if (!currentRegoPolicy) return;
+  let inputStr = '';
+  try { inputStr = document.getElementById('opa-input-json').value; } catch(e) {}
+
+  let inputObj = {};
+  try { inputObj = JSON.parse(inputStr); } catch(e) {}
+
+  const body = {
+    rego_modules: { 'authzen.rego': currentRegoPolicy },
+    data: {},
+    input: inputObj,
+  };
+
+  try {
+    const resp = await fetch('https://play.openpolicyagent.org/v1/share', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      const key = data.key || data.id;
+      if (key) {
+        window.open('https://play.openpolicyagent.org/p/' + key, '_blank');
+        return;
+      }
+    }
+  } catch(e) {}
+
+  // CORS fallback: copy policy + open playground
+  navigator.clipboard.writeText(currentRegoPolicy).then(() => {
+    const msg = 'Policy copied to clipboard!\n\nOpening play.openpolicyagent.org — paste the policy into the editor.';
+    alert(msg);
+    window.open('https://play.openpolicyagent.org/', '_blank');
+  }).catch(() => {
+    window.open('https://play.openpolicyagent.org/', '_blank');
+  });
+}
+
+function evalOPAInput() {
+  if (!requireWasm()) return;
+  let inputStr = '';
+  try { inputStr = document.getElementById('opa-input-json').value; } catch(e) {}
+  let input = {};
+  try { input = JSON.parse(inputStr); } catch(e) { alert('Invalid input JSON'); return; }
+
+  const req = {
+    subject:  input.subject  || {},
+    resource: input.resource || {},
+    action:   input.action   || {},
+  };
+  const raw = authzenEvaluate(JSON.stringify(req));
+  const res = JSON.parse(raw);
+  const el = document.getElementById('opa-local-result');
+  el.innerHTML = res.decision
+    ? '<span class="badge-allow">✓ ALLOW</span>'
+    : '<span class="badge-deny">✗ DENY</span>';
+  if (res.matched_rule) {
+    el.innerHTML += `<div style="margin-top:6px;color:var(--muted);font-size:11px">Matched: ${res.matched_rule.label}</div>`;
+  } else {
+    el.innerHTML += '<div style="margin-top:6px;color:var(--muted);font-size:11px">Default deny — no rule matched</div>';
+  }
+}
+</script>
+</body>
+</html>

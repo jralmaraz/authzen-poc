@@ -1,0 +1,121 @@
+{
+  "project": "authzen-poc",
+  "description": "AuthZEN Authorization API PoC — standards tracking baseline",
+  "standards": [
+    {
+      "id": "openid-authzen-api",
+      "label": "AuthZEN Authorization API",
+      "short": "AuthZEN",
+      "wg": "OpenID Foundation AuthZEN WG",
+      "last_known_rev": "2.0-ID2",
+      "implemented_rev": "2.0-ID2",
+      "status": "wg-draft",
+      "datatracker_url": "https://openid.net/wg/authzen/specifications/",
+      "api_url": null,
+      "check_method": "page-hash",
+      "spec_url": "https://openid.net/wg/authzen/specifications/",
+      "source_repo": "https://github.com/openid/authzen",
+      "source_repo_api": "https://api.github.com/repos/openid/authzen/commits/HEAD",
+      "impact": "Core spec — defines the five-tuple (subject/resource/action/context/environment), the /access/v1/evaluation and /access/v1/evaluations endpoints, and the decision response format. All pkg/authzen types and handler implement this spec directly.",
+      "used_in": [
+        "pkg/authzen/types.go",
+        "pkg/authzen/handler.go",
+        "pkg/authzen/pdp.go"
+      ]
+    },
+    {
+      "id": "draft-gazitt-oauth-authzen-issuance",
+      "label": "AuthZEN Profile for OAuth 2.0 Token Issuance",
+      "short": "AuthZEN-Issuance",
+      "wg": "IETF OAuth WG",
+      "last_known_rev": "00",
+      "implemented_rev": null,
+      "status": "individual-draft",
+      "datatracker_url": "https://datatracker.ietf.org/doc/draft-gazitt-oauth-authzen-issuance/",
+      "api_url": "https://datatracker.ietf.org/api/v1/doc/document/draft-gazitt-oauth-authzen-issuance/",
+      "source_repo": null,
+      "impact": "Defines how to map any OAuth token issuance decision to an AuthZEN PDP evaluation. The five-tuple model defined here is the canonical input to our InMemoryPDP. When adopted, implementation adds an AuthZEN client call at each token issuance decision point.",
+      "used_in": [
+        "pkg/authzen/pdp.go"
+      ]
+    },
+    {
+      "id": "draft-gazitt-oauth-authzen-token-exchange",
+      "label": "AuthZEN Binding for OAuth 2.0 Token Exchange",
+      "short": "AuthZEN-TE",
+      "wg": "IETF OAuth WG",
+      "last_known_rev": "00",
+      "implemented_rev": null,
+      "status": "individual-draft",
+      "datatracker_url": "https://datatracker.ietf.org/doc/draft-gazitt-oauth-authzen-token-exchange/",
+      "api_url": "https://datatracker.ietf.org/api/v1/doc/document/draft-gazitt-oauth-authzen-token-exchange/",
+      "source_repo": null,
+      "impact": "Specifies how an RFC 8693 Token Exchange request (identity chaining, ID-JAG, Txn-Token) maps to an AuthZEN PDP evaluation. Directly implemented in the AS Bridge simulation (cmd/demo-wasm wasmSimulateAS): subject_token sub → subject.id, audience → resource.id, 'exchange' → action.name.",
+      "used_in": [
+        "cmd/demo-wasm/main.go"
+      ]
+    },
+    {
+      "id": "rfc8693",
+      "label": "OAuth 2.0 Token Exchange",
+      "short": "RFC 8693",
+      "wg": "IETF OAuth WG",
+      "last_known_rev": "rfc",
+      "implemented_rev": "rfc",
+      "status": "rfc",
+      "datatracker_url": "https://datatracker.ietf.org/doc/html/rfc8693",
+      "api_url": null,
+      "source_repo": null,
+      "impact": "Foundational. The AS Bridge simulation demonstrates exactly the RFC 8693 Token Exchange request structure (grant_type, subject_token, subject_token_type, audience). AuthZEN fills the 'local policy' gap RFC 8693 leaves undefined.",
+      "used_in": [
+        "cmd/demo-wasm/main.go"
+      ]
+    },
+    {
+      "id": "openfga-dsl",
+      "label": "OpenFGA DSL (Authorization Model)",
+      "short": "FGA-DSL",
+      "wg": "OpenFGA / CNCF",
+      "last_known_rev": "1.1",
+      "implemented_rev": null,
+      "status": "active-draft",
+      "datatracker_url": "https://openfga.dev/docs/configuration-language",
+      "api_url": null,
+      "check_method": "page-hash",
+      "spec_url": "https://openfga.dev/docs/configuration-language",
+      "source_repo": "https://github.com/openfga/language",
+      "source_repo_api": "https://api.github.com/repos/openfga/language/commits/main",
+      "impact": "pkg/authzen/export.go ToOpenFGA() generates an OpenFGA DSL model (schema 1.1) and YAML tuples from InMemoryPDP rules. The OpenFGA demo tab links to play.fga.dev with the generated model.",
+      "used_in": [
+        "pkg/authzen/export.go"
+      ]
+    },
+    {
+      "id": "opa-rego",
+      "label": "Open Policy Agent — Rego policy language",
+      "short": "Rego",
+      "wg": "CNCF OPA",
+      "last_known_rev": "v1",
+      "implemented_rev": null,
+      "status": "active-draft",
+      "datatracker_url": "https://www.openpolicyagent.org/docs/latest/policy-language/",
+      "api_url": null,
+      "check_method": "page-hash",
+      "spec_url": "https://www.openpolicyagent.org/docs/latest/policy-language/",
+      "source_repo": "https://github.com/open-policy-agent/opa",
+      "source_repo_api": "https://api.github.com/repos/open-policy-agent/opa/commits/main",
+      "impact": "pkg/authzen/export.go ToRego() generates a Rego v1 policy from InMemoryPDP rules. The OPA demo tab POSTs the policy to play.openpolicyagent.org share API to open it live.",
+      "used_in": [
+        "pkg/authzen/export.go"
+      ]
+    }
+  ],
+  "wg_feeds": [
+    {
+      "name": "OpenID AuthZEN WG — GitHub releases",
+      "type": "rss",
+      "feed_url": "https://github.com/openid/authzen/releases.atom",
+      "keywords": ["authzen", "authorization"]
+    }
+  ]
+}
