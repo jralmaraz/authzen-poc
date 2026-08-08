@@ -1091,7 +1091,9 @@ textarea{resize:vertical;min-height:80px;font-family:'Cascadia Code','Fira Code'
 
           <!-- Level 3: control plane unreachable — stale policy -->
           <g id="sc-fail-l3" style="display:none">
-            <rect x="310" y="85" width="130" height="70" rx="6" fill="rgba(248,81,73,.15)" stroke="#f85149" stroke-width="2" class="fail-blink"/>
+            <!-- Clear interior of control plane box so base text doesn't bleed through -->
+            <rect x="312" y="87" width="126" height="66" fill="#0a0f15"/>
+            <rect x="310" y="85" width="130" height="70" rx="6" fill="rgba(248,81,73,.10)" stroke="#f85149" stroke-width="2" class="fail-blink"/>
             <text x="375" y="106" text-anchor="middle" font-size="9" fill="#f85149" font-weight="700" font-family="sans-serif">Control Plane DOWN</text>
             <text x="375" y="119" text-anchor="middle" font-size="7.5" fill="#ffa657" font-family="sans-serif">Policy sync stopped</text>
             <text x="375" y="131" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">Sidecars: last-known policy</text>
