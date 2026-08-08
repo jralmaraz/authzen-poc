@@ -829,8 +829,8 @@ textarea{resize:vertical;min-height:80px;font-family:'Cascadia Code','Fira Code'
         <div class="chip" onclick="setTopo('activeactive',this)">Active-Active HA</div>
         <div class="chip" onclick="setTopo('sidecar',this)">Sidecar / per-pod</div>
       </div>
-      <button class="btn btn-sm" id="topo-fail-btn" onclick="injectFailure()" style="background:rgba(248,81,73,.1);color:var(--red);border:1px solid rgba(248,81,73,.4)">Inject Failure</button>
-      <button class="btn btn-sm" id="topo-recover-btn" onclick="recoverTopo()" style="display:none;background:rgba(63,185,80,.1);color:var(--green);border:1px solid rgba(63,185,80,.4)">Recover</button>
+      <button class="btn btn-sm" id="topo-fail-btn" onclick="injectFailure()" style="background:rgba(255,166,87,.1);color:#ffa657;border:1px solid rgba(255,166,87,.4)">⚠ Degrade</button>
+      <button class="btn btn-sm" id="topo-recover-btn" onclick="recoverTopo()" style="display:none;background:rgba(63,185,80,.1);color:var(--green);border:1px solid rgba(63,185,80,.4)">↩ Recover</button>
       <select id="failmode-select" style="width:auto;padding:4px 8px;font-size:11px;border-radius:6px">
         <option value="closed">Fail-closed (deny all)</option>
         <option value="open">Fail-open (allow + audit)</option>
@@ -892,6 +892,33 @@ textarea{resize:vertical;min-height:80px;font-family:'Cascadia Code','Fira Code'
           <text x="610" y="116" text-anchor="middle" font-size="8" fill="#ffa657" font-family="sans-serif" id="c-fail-t3" style="display:none">→ fail-closed: 403 all</text>
           <text x="610" y="132" text-anchor="middle" font-size="8" fill="#ffa657" font-family="sans-serif" id="c-fail-t4" style="display:none">→ fail-open: allow + audit</text>
           <text x="610" y="148" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif" id="c-fail-t5" style="display:none">Circuit breaker recommended</text>
+
+          <!-- Level 1: degraded — PDP slow -->
+          <g id="c-fail-l1" style="display:none">
+            <line x1="120" y1="58" x2="328" y2="100" stroke="#ffa657" stroke-width="1.5" stroke-dasharray="4,7" marker-end="url(#arr-ty)"/>
+            <line x1="120" y1="110" x2="328" y2="110" stroke="#ffa657" stroke-width="1.5" stroke-dasharray="4,7" marker-end="url(#arr-ty)"/>
+            <line x1="120" y1="162" x2="328" y2="120" stroke="#ffa657" stroke-width="1.5" stroke-dasharray="4,7" marker-end="url(#arr-ty)"/>
+            <rect x="510" y="55" width="205" height="95" rx="6" fill="rgba(255,166,87,.05)" stroke="rgba(255,166,87,.35)" stroke-width="1"/>
+            <text x="612" y="74" text-anchor="middle" font-size="9" fill="#ffa657" font-weight="700" font-family="sans-serif">PDP degraded — high latency</text>
+            <text x="612" y="89" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">p99 response time: &gt; 2000ms</text>
+            <text x="612" y="103" text-anchor="middle" font-size="8" fill="#ffa657" font-family="sans-serif">Circuit breaker: approaching threshold</text>
+            <text x="612" y="117" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">Decision cache absorbing load</text>
+            <text x="612" y="131" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">→ increase cache TTL, check PDP resources</text>
+          </g>
+
+          <!-- Level 3: cascade — services fail too -->
+          <g id="c-fail-l3" style="display:none">
+            <rect x="30" y="40" width="90" height="36" rx="5" fill="rgba(248,81,73,.2)" stroke="#f85149" stroke-width="2" class="fail-blink"/>
+            <rect x="30" y="92" width="90" height="36" rx="5" fill="rgba(248,81,73,.2)" stroke="#f85149" stroke-width="2" class="fail-blink"/>
+            <rect x="30" y="144" width="90" height="36" rx="5" fill="rgba(248,81,73,.2)" stroke="#f85149" stroke-width="2" class="fail-blink"/>
+            <text x="75" y="55" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif">503</text>
+            <text x="75" y="107" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif">503</text>
+            <text x="75" y="159" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif">503</text>
+            <rect x="455" y="165" width="400" height="48" rx="5" fill="rgba(248,81,73,.08)" stroke="rgba(248,81,73,.4)" stroke-width="1"/>
+            <text x="655" y="183" text-anchor="middle" font-size="9" fill="#f85149" font-weight="700" font-family="sans-serif">CASCADING FAILURE — all services returning 503</text>
+            <text x="655" y="198" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">Upstream callers timing out → blast radius expands across entire system</text>
+            <text x="655" y="210" text-anchor="middle" font-size="7.5" fill="#ffa657" font-family="sans-serif">This is the centralized SPOF worst case. Sidecar or Active-Active limits this blast radius.</text>
+          </g>
         </g>
 
         <!-- ACTIVE-ACTIVE topology -->
@@ -942,6 +969,43 @@ textarea{resize:vertical;min-height:80px;font-family:'Cascadia Code','Fira Code'
             <line x1="250" y1="110" x2="320" y2="110" stroke="#f85149" stroke-width="1.5" stroke-dasharray="4,3" class="fail-blink" marker-end="url(#arr-tr)"/>
             <text x="600" y="160" text-anchor="middle" font-size="9" fill="#3fb950" font-family="sans-serif" font-weight="700">Replicas 1 + 3 continue serving</text>
             <text x="600" y="173" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">LB health check removes failed replica automatically</text>
+          </g>
+
+          <!-- Level 2: replicas 2+3 down — reduced capacity -->
+          <g id="aa-fail-l2" style="display:none">
+            <rect x="322" y="40" width="110" height="36" rx="5" fill="rgba(63,185,80,.15)" stroke="#3fb950" stroke-width="2.5"/>
+            <text x="377" y="56" text-anchor="middle" font-size="8" fill="#3fb950" font-weight="700" font-family="sans-serif">Replica 1 — 3× load</text>
+            <text x="377" y="69" text-anchor="middle" font-size="7" fill="#ffa657" font-family="sans-serif">at risk of overload</text>
+            <rect x="322" y="92" width="110" height="36" rx="5" fill="rgba(248,81,73,.2)" stroke="#f85149" stroke-width="2"/>
+            <text x="377" y="107" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif" class="fail-blink">Replica 2 DOWN</text>
+            <text x="377" y="120" text-anchor="middle" font-size="7" fill="#f85149" font-family="sans-serif">removed from LB</text>
+            <rect x="322" y="144" width="110" height="36" rx="5" fill="rgba(248,81,73,.2)" stroke="#f85149" stroke-width="2"/>
+            <text x="377" y="160" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif" class="fail-blink">Replica 3 DOWN</text>
+            <text x="377" y="173" text-anchor="middle" font-size="7" fill="#f85149" font-family="sans-serif">removed from LB</text>
+            <line x1="250" y1="110" x2="320" y2="110" stroke="#f85149" stroke-width="1.5" stroke-dasharray="4,3" class="fail-blink" marker-end="url(#arr-tr)"/>
+            <line x1="250" y1="120" x2="320" y2="155" stroke="#f85149" stroke-width="1.5" stroke-dasharray="4,3" class="fail-blink" marker-end="url(#arr-tr)"/>
+            <text x="625" y="190" text-anchor="middle" font-size="9" fill="#ffa657" font-weight="700" font-family="sans-serif">1 of 3 replicas serving — autoscale now</text>
+            <text x="625" y="205" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">Policy store sync still active to Replica 1</text>
+          </g>
+
+          <!-- Level 3: all replicas down — full cluster outage -->
+          <g id="aa-fail-l3" style="display:none">
+            <rect x="160" y="90" width="90" height="40" rx="5" fill="rgba(248,81,73,.15)" stroke="#f85149" stroke-width="2"/>
+            <text x="205" y="107" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif">LB: no healthy</text>
+            <text x="205" y="119" text-anchor="middle" font-size="7" fill="#f85149" font-family="sans-serif">upstream</text>
+            <rect x="322" y="40" width="110" height="36" rx="5" fill="rgba(248,81,73,.2)" stroke="#f85149" stroke-width="2" class="fail-blink"/>
+            <text x="377" y="57" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif">Replica 1 DOWN</text>
+            <rect x="322" y="92" width="110" height="36" rx="5" fill="rgba(248,81,73,.2)" stroke="#f85149" stroke-width="2" class="fail-blink"/>
+            <text x="377" y="109" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif">Replica 2 DOWN</text>
+            <rect x="322" y="144" width="110" height="36" rx="5" fill="rgba(248,81,73,.2)" stroke="#f85149" stroke-width="2" class="fail-blink"/>
+            <text x="377" y="161" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif">Replica 3 DOWN</text>
+            <line x1="250" y1="100" x2="320" y2="65" stroke="#f85149" stroke-width="1.5" stroke-dasharray="4,3" class="fail-blink" marker-end="url(#arr-tr)"/>
+            <line x1="250" y1="110" x2="320" y2="110" stroke="#f85149" stroke-width="1.5" stroke-dasharray="4,3" class="fail-blink" marker-end="url(#arr-tr)"/>
+            <line x1="250" y1="120" x2="320" y2="155" stroke="#f85149" stroke-width="1.5" stroke-dasharray="4,3" class="fail-blink" marker-end="url(#arr-tr)"/>
+            <rect x="470" y="40" width="360" height="60" rx="5" fill="rgba(248,81,73,.08)" stroke="rgba(248,81,73,.4)" stroke-width="1"/>
+            <text x="650" y="60" text-anchor="middle" font-size="9" fill="#f85149" font-weight="700" font-family="sans-serif">FULL CLUSTER OUTAGE</text>
+            <text x="650" y="76" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">All replicas down simultaneously — very rare with autoscaling</text>
+            <text x="650" y="91" text-anchor="middle" font-size="7.5" fill="#ffa657" font-family="sans-serif">Geographic multi-region distribution eliminates single-region failure</text>
           </g>
         </g>
 
@@ -1004,6 +1068,30 @@ textarea{resize:vertical;min-height:80px;font-family:'Cascadia Code','Fira Code'
             <text x="189" y="170" text-anchor="middle" font-size="8" fill="#f85149" font-family="sans-serif" font-weight="700" class="fail-blink">sidecar DOWN</text>
             <text x="189" y="183" text-anchor="middle" font-size="7" fill="#ffa657" font-family="sans-serif">Pod B isolated only</text>
             <text x="375" y="195" text-anchor="middle" font-size="8.5" fill="#3fb950" font-family="sans-serif" font-weight="700">Pod A unaffected — failures are pod-local</text>
+          </g>
+
+          <!-- Level 2: both sidecars down -->
+          <g id="sc-fail-l2" style="display:none">
+            <rect x="140" y="60" width="98" height="44" rx="4" fill="rgba(248,81,73,.18)" stroke="#f85149" stroke-width="2"/>
+            <text x="189" y="79" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif" class="fail-blink">Pod A sidecar DOWN</text>
+            <text x="189" y="92" text-anchor="middle" font-size="7" fill="#ffa657" font-family="sans-serif">k8s restarting…</text>
+            <text x="375" y="210" text-anchor="middle" font-size="8.5" fill="#ffa657" font-weight="700" font-family="sans-serif">Systematic failure — check bundle size or sidecar OOM</text>
+          </g>
+
+          <!-- Level 3: control plane unreachable — stale policy -->
+          <g id="sc-fail-l3" style="display:none">
+            <rect x="310" y="85" width="130" height="70" rx="6" fill="rgba(248,81,73,.15)" stroke="#f85149" stroke-width="2" class="fail-blink"/>
+            <text x="375" y="106" text-anchor="middle" font-size="9" fill="#f85149" font-weight="700" font-family="sans-serif">Control Plane DOWN</text>
+            <text x="375" y="119" text-anchor="middle" font-size="7.5" fill="#ffa657" font-family="sans-serif">Policy sync stopped</text>
+            <text x="375" y="131" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">Sidecars: last-known policy</text>
+            <text x="375" y="143" text-anchor="middle" font-size="7" fill="#ffa657" font-family="sans-serif">staleness window open</text>
+            <line x1="310" y1="110" x2="240" y2="82" stroke="#f85149" stroke-width="1.2" stroke-dasharray="4,4" class="fail-blink"/>
+            <line x1="310" y1="130" x2="240" y2="172" stroke="#f85149" stroke-width="1.2" stroke-dasharray="4,4" class="fail-blink"/>
+            <rect x="460" y="155" width="375" height="58" rx="5" fill="rgba(255,166,87,.05)" stroke="rgba(255,166,87,.3)" stroke-width="1"/>
+            <text x="647" y="172" text-anchor="middle" font-size="9" fill="#ffa657" font-weight="700" font-family="sans-serif">Sidecars serving STALE POLICY</text>
+            <text x="647" y="186" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">Requests evaluated against last-fetched bundle (up to bundle TTL old)</text>
+            <text x="647" y="200" text-anchor="middle" font-size="8" fill="#f85149" font-family="sans-serif">Risk: recently revoked access may still be granted</text>
+            <text x="647" y="212" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">Mitigation: short bundle TTL + control-plane HA deployment</text>
           </g>
         </g>
       </svg>
@@ -1720,81 +1808,160 @@ function setLambdaMode(mode, el) {
   document.getElementById('li-3').style.display = isAuthZEN ? '' : 'none';
 }
 
-// Topology
+// Topology — progressive failure escalation
 let currentTopo = 'centralized';
-let topoFailed = false;
+let failLevel = 0; // 0 = healthy, 1 = degraded, 2 = failed, 3 = cascade
+
+const FAIL_BTN_STATES = [
+  { label: '⚠ Degrade',   bg: 'rgba(255,166,87,.1)',  color: '#ffa657',  border: '1px solid rgba(255,166,87,.4)' },
+  { label: '✗ Fail →',    bg: 'rgba(248,81,73,.12)',  color: 'var(--red)', border: '1px solid rgba(248,81,73,.5)' },
+  { label: '💥 Cascade →', bg: 'rgba(248,81,73,.22)', color: '#ff5555',  border: '2px solid #f85149' },
+];
+
+const TOPO_INSIGHTS = {
+  centralized: [
+    '<strong>Centralized PDP:</strong> A single AuthZEN endpoint in the request critical path. Simple to manage, but a single point of failure. Click <em>Degrade</em> to start the failure scenario.',
+    '<strong>Level 1 — Degraded:</strong> PDP responding slowly (p99 &gt; 2s). Circuit breaker approaching threshold. Decision cache is absorbing load. Mitigation: increase cache TTL, check PDP CPU/memory.',
+    '<strong>Level 2 — Failed:</strong> PDP unreachable. All services hit the open circuit breaker. Fail-closed = 403 for every request. Fail-open = allow + emit <code>AUTHZ_FAILOPEN</code> audit event.',
+    '<strong>Level 3 — Cascade:</strong> PDP outage has propagated — all services returning 503, upstream callers timing out. This is the centralized SPOF worst case. Active-Active or Sidecar limits blast radius.',
+  ],
+  activeactive: [
+    '<strong>Active-Active:</strong> AuthZEN\'s stateless request model (full five-tuple in every call, no session) means any replica answers any request. Click <em>Degrade</em> to simulate progressive failures.',
+    '<strong>Level 1 — Replica 2 down:</strong> LB health check removes it from rotation. Replicas 1 and 3 absorb traffic. Policy sync continues to remaining replicas. Minimal user impact.',
+    '<strong>Level 2 — Reduced capacity:</strong> Only Replica 1 serving at 3× normal load. Risk of overload cascade. Autoscale PDP replicas based on request queue depth before this point.',
+    '<strong>Level 3 — Full cluster outage:</strong> All replicas down simultaneously — very rare with autoscaling. LB has no healthy upstream. Geographic multi-region distribution eliminates single-region scenarios.',
+  ],
+  sidecar: [
+    '<strong>Sidecar pattern:</strong> Each pod runs its own AuthZEN PDP on loopback — &lt;1ms latency, no network dep. Failures are pod-local. Policy distributed via control plane bundle sync. Click <em>Degrade</em> to simulate.',
+    '<strong>Level 1 — Pod B sidecar down:</strong> Pod B falls back to fail-closed/open. Pod A completely unaffected — blast radius = one pod. Kubernetes restarts the sidecar container automatically.',
+    '<strong>Level 2 — Multiple sidecars down:</strong> Systematic failure across pods. Check policy bundle size, sidecar OOM, or a bad bundle causing crashes. Other pods may follow if root cause is not fixed.',
+    '<strong>Level 3 — Control plane unreachable:</strong> Sidecars keep serving using last-known policy. Risk: recently revoked permissions may still be granted until control plane recovers. Mitigation: short bundle TTL + control plane HA.',
+  ],
+};
+
+function updateFailBtn() {
+  const btn = document.getElementById('topo-fail-btn');
+  if (failLevel >= 3) {
+    btn.style.display = 'none';
+  } else {
+    btn.style.display = '';
+    const s = FAIL_BTN_STATES[failLevel];
+    btn.textContent = s.label;
+    btn.style.background = s.bg;
+    btn.style.color = s.color;
+    btn.style.border = s.border;
+  }
+  document.getElementById('topo-recover-btn').style.display = failLevel > 0 ? '' : 'none';
+}
+
+function updateTopoInsight() {
+  const el = document.getElementById('topo-insight');
+  el.innerHTML = TOPO_INSIGHTS[currentTopo][failLevel];
+  const cls = failLevel === 0 ? (currentTopo === 'centralized' ? 'warn' : 'ok')
+             : failLevel <= 1 ? 'warn'
+             : 'bad';
+  el.className = 'callout ' + cls;
+}
 
 function setTopo(name, el) {
-  if (topoFailed) recoverTopo();
+  if (failLevel > 0) recoverTopo(true);
   document.querySelectorAll('#topo-chips .chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   ['centralized','activeactive','sidecar'].forEach(t => {
     document.getElementById('topo-' + t).style.display = t === name ? '' : 'none';
   });
   currentTopo = name;
-  const insights = {
-    centralized: '<strong>Centralized PDP risk:</strong> A single AuthZEN endpoint in the request critical path is a SPOF. If the PDP is unreachable: fail-closed = all requests return 403; fail-open = all requests pass (with audit log). Mitigate with circuit breaker + decision cache before calling PDP.',
-    activeactive: '<strong>Active-Active advantage:</strong> AuthZEN\'s stateless request model (full five-tuple in every request, no session) means any replica can answer any request. Pair with a policy control plane (Styra DAS, OPA bundle server) to push consistent policies to all replicas. Health-check removes failed replicas without impacting the rest.',
-    sidecar: '<strong>Sidecar pattern — best latency, isolated failures:</strong> Each pod runs its own AuthZEN PDP. Loopback call = &lt;1ms. A sidecar failure affects only that pod. Policy is distributed via a control plane (bundle push/pull). Trade-off: more ops complexity vs central. <strong>AuthZEN API is identical regardless of deployment model.</strong>',
-  };
-  document.getElementById('topo-insight').innerHTML = insights[name];
-  document.getElementById('topo-insight').className = 'callout ' + (name === 'centralized' ? 'warn' : 'ok');
+  updateTopoInsight();
+  updateFailBtn();
 }
 
 function injectFailure() {
-  topoFailed = true;
-  document.getElementById('topo-fail-btn').style.display = 'none';
-  document.getElementById('topo-recover-btn').style.display = '';
+  if (failLevel >= 3) return;
+  failLevel++;
+  applyTopoLevel();
+  updateFailBtn();
+  updateTopoInsight();
+}
+
+function recoverTopo(silent) {
+  failLevel = 0;
+  resetTopoVisuals();
+  updateFailBtn();
+  if (!silent) updateTopoInsight();
+}
+
+function resetTopoVisuals() {
+  // Centralized reset
+  const pdp = document.getElementById('c-pdp-rect');
+  if (pdp) { pdp.setAttribute('stroke','#ffa657'); pdp.setAttribute('fill','#161b22'); }
+  const pt1 = document.getElementById('c-pdp-t1');
+  if (pt1) pt1.setAttribute('fill','#ffa657');
+  const pt2 = document.getElementById('c-pdp-t2');
+  if (pt2) { pt2.setAttribute('fill','#7d8590'); pt2.textContent = 'Single instance'; }
+  ['c-failure','c-fail-box','c-fail-l1','c-fail-l3'].forEach(id => { const e=document.getElementById(id); if(e) e.style.display='none'; });
+  ['c-fail-t1','c-fail-t2','c-fail-t3','c-fail-t4','c-fail-t5'].forEach(id => { const e=document.getElementById(id); if(e) e.style.display='none'; });
+  ['c-resp-a','c-resp-b','c-resp-c'].forEach(id => {
+    const e=document.getElementById(id);
+    if(e) { e.style.display=''; e.setAttribute('stroke','#3fb950'); e.setAttribute('stroke-dasharray','3,2'); }
+  });
+  ['c-arr-a','c-arr-b','c-arr-c'].forEach(id => { const e=document.getElementById(id); if(e) e.style.display=''; });
+
+  // Active-active reset
+  ['aa-failure','aa-fail-l2','aa-fail-l3'].forEach(id => { const e=document.getElementById(id); if(e) e.style.display='none'; });
+
+  // Sidecar reset
+  ['sc-failure','sc-fail-l2','sc-fail-l3'].forEach(id => { const e=document.getElementById(id); if(e) e.style.display='none'; });
+}
+
+function applyTopoLevel() {
   const mode = document.getElementById('failmode-select').value;
 
   if (currentTopo === 'centralized') {
-    const pdp = document.getElementById('c-pdp-rect');
-    pdp.setAttribute('stroke', '#f85149');
-    pdp.setAttribute('fill', 'rgba(248,81,73,.1)');
-    document.getElementById('c-pdp-t1').setAttribute('fill', '#f85149');
-    document.getElementById('c-pdp-t2').setAttribute('fill', '#f85149');
-    document.getElementById('c-failure').style.display = '';
-    document.getElementById('c-fail-box').style.display = '';
-    document.getElementById('c-fail-t1').style.display = '';
-    document.getElementById('c-fail-t2').style.display = '';
-    document.getElementById('c-fail-t3').style.display = mode === 'closed' ? '' : 'none';
-    document.getElementById('c-fail-t4').style.display = mode === 'open'   ? '' : 'none';
-    document.getElementById('c-fail-t5').style.display = '';
-    ['c-resp-a','c-resp-b','c-resp-c','c-arr-a','c-arr-b','c-arr-c'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
-    });
-  } else if (currentTopo === 'activeactive') {
-    document.getElementById('aa-failure').style.display = '';
-  } else if (currentTopo === 'sidecar') {
-    document.getElementById('sc-failure').style.display = '';
+    if (failLevel === 1) {
+      document.getElementById('c-fail-l1').style.display = '';
+      const pdp = document.getElementById('c-pdp-rect');
+      pdp.setAttribute('stroke','#ffa657'); pdp.setAttribute('fill','rgba(255,166,87,.08)');
+      document.getElementById('c-pdp-t1').setAttribute('fill','#ffa657');
+      const t2 = document.getElementById('c-pdp-t2');
+      t2.textContent = 'High latency'; t2.setAttribute('fill','#ffa657');
+      ['c-resp-a','c-resp-b','c-resp-c'].forEach(id => {
+        const e=document.getElementById(id);
+        if(e) { e.setAttribute('stroke','#ffa657'); e.setAttribute('stroke-dasharray','3,7'); }
+      });
+    }
+    if (failLevel === 2) {
+      document.getElementById('c-fail-l1').style.display = 'none';
+      const pdp = document.getElementById('c-pdp-rect');
+      pdp.setAttribute('stroke','#f85149'); pdp.setAttribute('fill','rgba(248,81,73,.1)');
+      document.getElementById('c-pdp-t1').setAttribute('fill','#f85149');
+      const t2 = document.getElementById('c-pdp-t2');
+      t2.textContent = 'UNREACHABLE'; t2.setAttribute('fill','#f85149');
+      document.getElementById('c-failure').style.display = '';
+      document.getElementById('c-fail-box').style.display = '';
+      document.getElementById('c-fail-t1').style.display = '';
+      document.getElementById('c-fail-t2').style.display = '';
+      document.getElementById('c-fail-t3').style.display = mode === 'closed' ? '' : 'none';
+      document.getElementById('c-fail-t4').style.display = mode === 'open'   ? '' : 'none';
+      document.getElementById('c-fail-t5').style.display = '';
+      ['c-resp-a','c-resp-b','c-resp-c','c-arr-a','c-arr-b','c-arr-c'].forEach(id => {
+        const e=document.getElementById(id); if(e) e.style.display='none';
+      });
+    }
+    if (failLevel === 3) {
+      document.getElementById('c-fail-l3').style.display = '';
+    }
   }
-}
 
-function recoverTopo() {
-  topoFailed = false;
-  document.getElementById('topo-fail-btn').style.display = '';
-  document.getElementById('topo-recover-btn').style.display = 'none';
+  else if (currentTopo === 'activeactive') {
+    if (failLevel === 1) { document.getElementById('aa-failure').style.display = ''; }
+    if (failLevel === 2) { document.getElementById('aa-failure').style.display = 'none'; document.getElementById('aa-fail-l2').style.display = ''; }
+    if (failLevel === 3) { document.getElementById('aa-fail-l2').style.display = 'none'; document.getElementById('aa-fail-l3').style.display = ''; }
+  }
 
-  if (currentTopo === 'centralized') {
-    const pdp = document.getElementById('c-pdp-rect');
-    pdp.setAttribute('stroke', '#ffa657');
-    pdp.setAttribute('fill', '#161b22');
-    document.getElementById('c-pdp-t1').setAttribute('fill', '#ffa657');
-    document.getElementById('c-pdp-t2').setAttribute('fill', '#7d8590');
-    document.getElementById('c-failure').style.display = 'none';
-    document.getElementById('c-fail-box').style.display = 'none';
-    ['c-fail-t1','c-fail-t2','c-fail-t3','c-fail-t4','c-fail-t5'].forEach(id => {
-      document.getElementById(id).style.display = 'none';
-    });
-    ['c-resp-a','c-resp-b','c-resp-c','c-arr-a','c-arr-b','c-arr-c'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = '';
-    });
-  } else if (currentTopo === 'activeactive') {
-    document.getElementById('aa-failure').style.display = 'none';
-  } else if (currentTopo === 'sidecar') {
-    document.getElementById('sc-failure').style.display = 'none';
+  else if (currentTopo === 'sidecar') {
+    if (failLevel === 1) { document.getElementById('sc-failure').style.display = ''; }
+    if (failLevel === 2) { document.getElementById('sc-fail-l2').style.display = ''; }
+    if (failLevel === 3) { document.getElementById('sc-fail-l3').style.display = ''; }
   }
 }
 
