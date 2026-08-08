@@ -783,17 +783,22 @@ textarea{resize:vertical;min-height:80px;font-family:'Cascadia Code','Fira Code'
         <text x="280" y="161" text-anchor="middle" font-size="8" fill="#ffa657" font-family="sans-serif" font-weight="600">Built-in TTL cache (up to 3600s)</text>
         <text x="280" y="175" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">AuthZEN PDP only called on cache miss — decouples auth load from request rate</text>
 
-        <!-- Five-tuple mapping (authzen mode) -->
-        <g id="lambda-fiveTuple" style="display:none">
-          <rect x="660" y="28" width="185" height="75" rx="4" fill="rgba(88,166,255,.05)" stroke="rgba(88,166,255,.3)" stroke-width="1"/>
-          <text x="752" y="44" text-anchor="middle" font-size="8" fill="#58a6ff" font-family="sans-serif" font-weight="700">Five-tuple mapping</text>
-          <text x="672" y="57" font-size="7.5" fill="#7d8590" font-family="monospace">subject.id  = token.sub</text>
-          <text x="672" y="68" font-size="7.5" fill="#7d8590" font-family="monospace">resource.id = method ARN path</text>
-          <text x="672" y="79" font-size="7.5" fill="#7d8590" font-family="monospace">action.name = HTTP method</text>
-          <text x="672" y="90" font-size="7.5" fill="#7d8590" font-family="monospace">→ { "decision": bool }</text>
-          <text x="672" y="97" font-size="7" fill="#7d8590" font-family="monospace">→ translate to IAM policy doc</text>
-        </g>
       </svg>
+    </div>
+
+    <!-- Five-tuple mapping — shown below canvas in AuthZEN mode only -->
+    <div id="lambda-fiveTuple" style="display:none;margin-bottom:12px">
+      <div style="background:rgba(88,166,255,.05);border:1px solid rgba(88,166,255,.3);border-radius:8px;padding:12px 16px">
+        <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Five-tuple mapping — Lambda context → AuthZEN request</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;font-size:12px">
+          <div><span style="color:var(--muted)">subject.type</span> = <code>workload</code> / <code>user</code></div>
+          <div><span style="color:var(--muted)">subject.id</span> = <code>token.sub</code></div>
+          <div><span style="color:var(--muted)">resource.type</span> = <code>api-resource</code></div>
+          <div><span style="color:var(--muted)">resource.id</span> = method ARN path</div>
+          <div><span style="color:var(--muted)">action.name</span> = HTTP method (GET, POST…)</div>
+          <div><span style="color:var(--muted)">decision</span> → translate to IAM <code>Allow</code> / <code>Deny</code></div>
+        </div>
+      </div>
     </div>
 
     <!-- Key insight cards -->
@@ -1711,8 +1716,6 @@ function setLambdaMode(mode, el) {
   document.getElementById('lambda-trad-flow').style.display   = isAuthZEN ? 'none' : '';
   document.getElementById('lambda-authzen-flow').style.display = isAuthZEN ? '' : 'none';
   document.getElementById('lambda-fiveTuple').style.display    = isAuthZEN ? '' : 'none';
-  const box = document.getElementById('lambda-result-box');
-  box.setAttribute('stroke', isAuthZEN ? '#3fb950' : '#3fb950');
   document.getElementById('li-2').style.display = isAuthZEN ? '' : 'none';
   document.getElementById('li-3').style.display = isAuthZEN ? '' : 'none';
 }
