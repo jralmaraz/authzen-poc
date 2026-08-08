@@ -128,6 +128,40 @@ textarea{resize:vertical;min-height:80px;font-family:'Cascadia Code','Fira Code'
 .mt{margin-top:10px}
 .mb{margin-bottom:10px}
 .gap{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* ── Patterns tab animations ── */
+.anim-canvas{background:#0a0f15;border:1px solid var(--border);border-radius:8px;overflow:hidden;position:relative;margin-bottom:12px}
+.anim-controls{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.anim-speed{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.anim-speed input{width:80px;accent-color:var(--blue)}
+.topo-node{transition:all .4s}
+.topo-node.failed{filter:drop-shadow(0 0 6px #f85149)}
+.topo-node.active-node{filter:drop-shadow(0 0 6px #58a6ff)}
+.perf-bar-wrap{display:flex;flex-direction:column;gap:6px;padding:12px 0}
+.perf-row{display:flex;align-items:center;gap:8px;font-size:11px}
+.perf-label{width:140px;color:var(--muted);text-align:right;flex-shrink:0}
+.perf-track{flex:1;height:20px;background:rgba(255,255,255,.04);border-radius:4px;overflow:hidden;position:relative}
+.perf-seg{height:100%;border-radius:4px;position:absolute;top:0;transition:width .8s ease}
+.perf-seg.net{background:rgba(88,166,255,.5)}
+.perf-seg.eval{background:rgba(255,166,87,.5)}
+.perf-seg.cache{background:rgba(63,185,80,.5)}
+.perf-seg.wait{background:rgba(188,140,255,.3)}
+.perf-val{width:44px;color:var(--text);font-weight:700;font-size:11px;flex-shrink:0}
+.legend-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+.leg-dot{width:10px;height:10px;border-radius:2px}
+/* Animated packet dot */
+@keyframes packet-flow{0%{opacity:0;offset-distance:0%}5%{opacity:1}90%{opacity:1}100%{opacity:0;offset-distance:100%}}
+.packet{width:8px;height:8px;border-radius:50%;position:absolute;animation:packet-flow linear infinite;animation-play-state:paused}
+/* SVG flow line animation */
+@keyframes dash-flow{to{stroke-dashoffset:-20}}
+.flow-line{stroke-dasharray:6 4;animation:dash-flow .6s linear infinite;animation-play-state:paused}
+.flow-line.running{animation-play-state:running}
+/* Failure pulse */
+@keyframes fail-pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.fail-blink{animation:fail-pulse .5s ease infinite}
+/* HA ok pulse */
+@keyframes ok-pulse{0%,100%{r:14}50%{r:16}}
 </style>
 </head>
 <body>
@@ -146,6 +180,7 @@ textarea{resize:vertical;min-height:80px;font-family:'Cascadia Code','Fira Code'
     <div class="tab" onclick="showTab('asbridge',this)">AS Bridge</div>
     <div class="tab" onclick="showTab('openfga',this)">OpenFGA</div>
     <div class="tab" onclick="showTab('opa',this)">OPA / Rego</div>
+    <div class="tab" onclick="showTab('patterns',this)">Architecture Patterns</div>
     <div class="tab" onclick="showTab('standards',this)">📋 Standards</div>
   </nav>
 </div>
@@ -651,6 +686,638 @@ textarea{resize:vertical;min-height:80px;font-family:'Cascadia Code','Fira Code'
 </div>
 
 <!-- ══ STANDARDS ════════════════════════════════════════════════════════ -->
+<!-- ══ ARCHITECTURE PATTERNS ════════════════════════════════════════════ -->
+<div class="scene" id="scene-patterns">
+
+  <!-- ── 1. Lambda Authorizer ─────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">AWS Lambda Authorizer + AuthZEN</div>
+    <p class="spec-ref">Lambda Authorizers are a natural PEP — AuthZEN standardises exactly what happens inside that function.</p>
+
+    <div class="scenario-chips" id="lambda-chips">
+      <div class="chip active" onclick="setLambdaMode('traditional',this)">Traditional (hardcoded logic)</div>
+      <div class="chip" onclick="setLambdaMode('authzen',this)">With AuthZEN PDP</div>
+    </div>
+
+    <div class="anim-canvas" style="height:200px">
+      <svg id="lambda-svg" viewBox="0 0 860 200" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" style="display:block">
+        <defs>
+          <marker id="arr-l" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="#58a6ff"/></marker>
+          <marker id="arr-lg" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="#3fb950"/></marker>
+          <marker id="arr-lr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="#f85149"/></marker>
+          <marker id="arr-lo" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="#ffa657"/></marker>
+        </defs>
+
+        <!-- Client -->
+        <rect x="10" y="75" width="90" height="50" rx="6" fill="#161b22" stroke="#7d8590" stroke-width="1.5"/>
+        <text x="55" y="97" text-anchor="middle" font-size="9" fill="#7d8590" font-family="sans-serif" font-weight="700">Client</text>
+        <text x="55" y="111" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">API Request</text>
+
+        <!-- Arrow: Client → API GW -->
+        <line id="l-arr1" x1="100" y1="100" x2="168" y2="100" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr-l)"/>
+        <text x="134" y="92" text-anchor="middle" font-size="7" fill="#58a6ff" font-family="monospace">GET /orders</text>
+
+        <!-- API Gateway -->
+        <rect x="170" y="70" width="110" height="60" rx="6" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+        <text x="225" y="94" text-anchor="middle" font-size="9" fill="#58a6ff" font-family="sans-serif" font-weight="700">API Gateway</text>
+        <text x="225" y="108" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">invokes authorizer</text>
+        <text x="225" y="120" text-anchor="middle" font-size="7" fill="#7d8590" font-family="sans-serif">TTL cache: 300s</text>
+
+        <!-- Arrow: GW → Lambda -->
+        <line id="l-arr2" x1="280" y1="100" x2="348" y2="100" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr-l)"/>
+        <text x="314" y="92" text-anchor="middle" font-size="7" fill="#58a6ff" font-family="monospace">token + ctx</text>
+
+        <!-- Lambda Authorizer box -->
+        <rect x="350" y="55" width="140" height="90" rx="6" fill="#161b22" stroke="#ffa657" stroke-width="2"/>
+        <text x="420" y="76" text-anchor="middle" font-size="9" fill="#ffa657" font-family="sans-serif" font-weight="700">Lambda Authorizer</text>
+        <!-- Traditional mode content -->
+        <g id="lambda-traditional">
+          <rect x="362" y="82" width="116" height="26" rx="3" fill="rgba(255,166,87,.08)" stroke="rgba(255,166,87,.3)" stroke-width="1"/>
+          <text x="420" y="96" text-anchor="middle" font-size="8" fill="#ffa657" font-family="monospace">if token.sub == "alice"</text>
+          <text x="420" y="107" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="monospace">  return Allow</text>
+          <text x="420" y="132" text-anchor="middle" font-size="8" fill="#f85149" font-family="sans-serif">Hardcoded policy logic</text>
+        </g>
+        <!-- AuthZEN mode content -->
+        <g id="lambda-authzen" style="display:none">
+          <rect x="362" y="82" width="116" height="26" rx="3" fill="rgba(63,185,80,.08)" stroke="rgba(63,185,80,.3)" stroke-width="1"/>
+          <text x="420" y="95" text-anchor="middle" font-size="8" fill="#3fb950" font-family="monospace">POST /access/v1/evaluation</text>
+          <text x="420" y="107" text-anchor="middle" font-size="7" fill="#7d8590" font-family="monospace">{subject, resource, action}</text>
+          <text x="420" y="132" text-anchor="middle" font-size="8" fill="#3fb950" font-family="sans-serif">Thin translation layer</text>
+        </g>
+
+        <!-- Traditional: arrow → IAM directly -->
+        <g id="lambda-trad-flow">
+          <line x1="490" y1="100" x2="578" y2="100" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arr-lg)"/>
+          <text x="534" y="92" text-anchor="middle" font-size="7" fill="#3fb950" font-family="monospace">IAM policy doc</text>
+        </g>
+
+        <!-- AuthZEN: arrow → PDP → back → IAM -->
+        <g id="lambda-authzen-flow" style="display:none">
+          <!-- Lambda → PDP -->
+          <line x1="490" y1="88" x2="558" y2="56" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr-lg)"/>
+          <text x="520" y="64" text-anchor="middle" font-size="7" fill="#3fb950" font-family="monospace">AuthZEN call</text>
+          <!-- PDP box -->
+          <rect x="558" y="28" width="100" height="36" rx="5" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+          <text x="608" y="46" text-anchor="middle" font-size="9" fill="#3fb950" font-family="sans-serif" font-weight="700">AuthZEN PDP</text>
+          <text x="608" y="58" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">InMemory / OPA / FGA</text>
+          <!-- PDP → back to Lambda -->
+          <line x1="558" y1="56" x2="490" y2="115" stroke="#ffa657" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr-lo)"/>
+          <text x="515" y="100" text-anchor="middle" font-size="7" fill="#ffa657" font-family="monospace">{decision:true}</text>
+          <!-- Lambda → IAM -->
+          <line x1="490" y1="115" x2="578" y2="115" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arr-lg)"/>
+          <text x="534" y="107" text-anchor="middle" font-size="7" fill="#3fb950" font-family="monospace">→ IAM policy doc</text>
+        </g>
+
+        <!-- Allow/Deny result -->
+        <rect x="580" y="75" width="90" height="50" rx="6" fill="#161b22" stroke="#3fb950" stroke-width="1.5" id="lambda-result-box"/>
+        <text id="lambda-result-text1" x="625" y="96" text-anchor="middle" font-size="9" fill="#3fb950" font-family="sans-serif" font-weight="700">Allow</text>
+        <text id="lambda-result-text2" x="625" y="110" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">{Effect: "Allow"}</text>
+        <text id="lambda-result-text3" x="625" y="121" text-anchor="middle" font-size="7" fill="#7d8590" font-family="sans-serif">methodArn: "*"</text>
+
+        <!-- GW → response to client -->
+        <line x1="670" y1="100" x2="750" y2="100" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arr-lg)"/>
+        <text x="710" y="92" text-anchor="middle" font-size="7" fill="#3fb950" font-family="monospace">200 OK / 403</text>
+
+        <!-- TTL cache callout -->
+        <rect x="168" y="148" width="224" height="36" rx="4" fill="rgba(255,166,87,.05)" stroke="rgba(255,166,87,.25)" stroke-width="1"/>
+        <text x="280" y="161" text-anchor="middle" font-size="8" fill="#ffa657" font-family="sans-serif" font-weight="600">Built-in TTL cache (up to 3600s)</text>
+        <text x="280" y="175" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">AuthZEN PDP only called on cache miss — decouples auth load from request rate</text>
+
+      </svg>
+    </div>
+
+    <!-- Five-tuple mapping — shown below canvas in AuthZEN mode only -->
+    <div id="lambda-fiveTuple" style="display:none;margin-bottom:12px">
+      <div style="background:rgba(88,166,255,.05);border:1px solid rgba(88,166,255,.3);border-radius:8px;padding:12px 16px">
+        <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Five-tuple mapping — Lambda context → AuthZEN request</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;font-size:12px">
+          <div><span style="color:var(--muted)">subject.type</span> = <code>workload</code> / <code>user</code></div>
+          <div><span style="color:var(--muted)">subject.id</span> = <code>token.sub</code></div>
+          <div><span style="color:var(--muted)">resource.type</span> = <code>api-resource</code></div>
+          <div><span style="color:var(--muted)">resource.id</span> = method ARN path</div>
+          <div><span style="color:var(--muted)">action.name</span> = HTTP method (GET, POST…)</div>
+          <div><span style="color:var(--muted)">decision</span> → translate to IAM <code>Allow</code> / <code>Deny</code></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key insight cards -->
+    <div class="info-grid c3" id="lambda-insights">
+      <div class="info-box orange" id="li-1">
+        <div class="ibt">What Lambda provides</div>
+        <div class="ibv" style="font-size:11px">Built-in <strong>TTL decision cache</strong> (default 300s, max 3600s). AuthZEN PDP only called on cache miss — natural load decoupling at scale.</div>
+      </div>
+      <div class="info-box green" id="li-2">
+        <div class="ibt">What AuthZEN adds</div>
+        <div class="ibv" style="font-size:11px">Lambda becomes a <strong>thin PEP translation layer</strong>: extract five-tuple from request context, call AuthZEN, translate <code>{decision:bool}</code> to IAM policy doc.</div>
+      </div>
+      <div class="info-box blue" id="li-3">
+        <div class="ibt">The mismatch to handle</div>
+        <div class="ibv" style="font-size:11px">AuthZEN returns a single boolean. Lambda Authorizer returns an IAM policy document covering one or many ARNs. <strong>Use bulk evaluations</strong> to pre-check multiple resources in one PDP call.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 2. Topology / HA ──────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">Centralized vs Decentralized — Resilience and HA</div>
+    <p class="spec-ref">AuthZEN defines the API contract, not the deployment topology. Choose your resilience pattern.</p>
+
+    <div class="anim-controls">
+      <div class="scenario-chips" id="topo-chips">
+        <div class="chip active" onclick="setTopo('centralized',this)">Centralized (SPOF risk)</div>
+        <div class="chip" onclick="setTopo('activeactive',this)">Active-Active HA</div>
+        <div class="chip" onclick="setTopo('sidecar',this)">Sidecar / per-pod</div>
+      </div>
+      <button class="btn btn-sm" id="topo-fail-btn" onclick="injectFailure()" style="background:rgba(255,166,87,.1);color:#ffa657;border:1px solid rgba(255,166,87,.4)">⚠ Degrade</button>
+      <button class="btn btn-sm" id="topo-recover-btn" onclick="recoverTopo()" style="display:none;background:rgba(63,185,80,.1);color:var(--green);border:1px solid rgba(63,185,80,.4)">↩ Recover</button>
+      <select id="failmode-select" style="width:auto;padding:4px 8px;font-size:11px;border-radius:6px">
+        <option value="closed">Fail-closed (deny all)</option>
+        <option value="open">Fail-open (allow + audit)</option>
+      </select>
+    </div>
+
+    <div class="anim-canvas" style="height:220px">
+      <svg id="topo-svg" viewBox="0 0 860 220" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+        <defs>
+          <marker id="arr-t" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="#58a6ff"/></marker>
+          <marker id="arr-tg" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="#3fb950"/></marker>
+          <marker id="arr-tr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="#f85149"/></marker>
+          <marker id="arr-ty" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="#ffa657"/></marker>
+        </defs>
+
+        <!-- CENTRALIZED topology -->
+        <g id="topo-centralized">
+          <text x="430" y="18" text-anchor="middle" font-size="9" fill="#7d8590" font-family="sans-serif">All services call one AuthZEN PDP endpoint — simple to manage, single point of failure</text>
+          <!-- Services -->
+          <rect x="30" y="40" width="90" height="36" rx="5" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+          <text x="75" y="58" text-anchor="middle" font-size="8" fill="#58a6ff" font-family="sans-serif" font-weight="700">Service A</text>
+          <text x="75" y="69" text-anchor="middle" font-size="7" fill="#7d8590" font-family="sans-serif">PEP</text>
+
+          <rect x="30" y="92" width="90" height="36" rx="5" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+          <text x="75" y="110" text-anchor="middle" font-size="8" fill="#58a6ff" font-family="sans-serif" font-weight="700">Service B</text>
+          <text x="75" y="121" text-anchor="middle" font-size="7" fill="#7d8590" font-family="sans-serif">PEP</text>
+
+          <rect x="30" y="144" width="90" height="36" rx="5" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+          <text x="75" y="162" text-anchor="middle" font-size="8" fill="#58a6ff" font-family="sans-serif" font-weight="700">Service C</text>
+          <text x="75" y="173" text-anchor="middle" font-size="7" fill="#7d8590" font-family="sans-serif">PEP</text>
+
+          <!-- Arrows → PDP -->
+          <line x1="120" y1="58" x2="328" y2="100" stroke="#58a6ff" stroke-width="1.2" marker-end="url(#arr-t)" id="c-arr-a"/>
+          <line x1="120" y1="110" x2="328" y2="110" stroke="#58a6ff" stroke-width="1.2" marker-end="url(#arr-t)" id="c-arr-b"/>
+          <line x1="120" y1="162" x2="328" y2="120" stroke="#58a6ff" stroke-width="1.2" marker-end="url(#arr-t)" id="c-arr-c"/>
+
+          <!-- Central PDP -->
+          <rect x="330" y="78" width="130" height="64" rx="6" fill="#161b22" stroke="#ffa657" stroke-width="2" id="c-pdp-rect"/>
+          <text x="395" y="100" text-anchor="middle" font-size="10" fill="#ffa657" font-family="sans-serif" font-weight="700" id="c-pdp-t1">AuthZEN PDP</text>
+          <text x="395" y="114" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif" id="c-pdp-t2">Single instance</text>
+          <text x="395" y="130" text-anchor="middle" font-size="8" fill="#f85149" font-family="sans-serif" id="c-spof-label">SPOF risk</text>
+
+          <!-- Response arrows -->
+          <line x1="330" y1="100" x2="122" y2="62" stroke="#3fb950" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#arr-tg)" id="c-resp-a"/>
+          <line x1="330" y1="110" x2="122" y2="110" stroke="#3fb950" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#arr-tg)" id="c-resp-b"/>
+          <line x1="330" y1="120" x2="122" y2="160" stroke="#3fb950" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#arr-tg)" id="c-resp-c"/>
+
+          <!-- Failure state (hidden initially) -->
+          <g id="c-failure" style="display:none">
+            <line x1="120" y1="58" x2="328" y2="100" stroke="#f85149" stroke-width="1.5" marker-end="url(#arr-tr)" class="fail-blink"/>
+            <line x1="120" y1="110" x2="328" y2="110" stroke="#f85149" stroke-width="1.5" marker-end="url(#arr-tr)" class="fail-blink"/>
+            <line x1="120" y1="162" x2="328" y2="120" stroke="#f85149" stroke-width="1.5" marker-end="url(#arr-tr)" class="fail-blink"/>
+          </g>
+
+          <!-- Fail result box -->
+          <rect x="510" y="60" width="200" height="100" rx="6" fill="rgba(248,81,73,.05)" stroke="rgba(248,81,73,.3)" stroke-width="1" id="c-fail-box" style="display:none"/>
+          <text x="610" y="82" text-anchor="middle" font-size="9" fill="#f85149" font-family="sans-serif" font-weight="700" id="c-fail-t1" style="display:none">PDP unreachable</text>
+          <text x="610" y="100" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif" id="c-fail-t2" style="display:none">All services blocked</text>
+          <text x="610" y="116" text-anchor="middle" font-size="8" fill="#ffa657" font-family="sans-serif" id="c-fail-t3" style="display:none">→ fail-closed: 403 all</text>
+          <text x="610" y="132" text-anchor="middle" font-size="8" fill="#ffa657" font-family="sans-serif" id="c-fail-t4" style="display:none">→ fail-open: allow + audit</text>
+          <text x="610" y="148" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif" id="c-fail-t5" style="display:none">Circuit breaker recommended</text>
+
+          <!-- Level 1: degraded — PDP slow -->
+          <g id="c-fail-l1" style="display:none">
+            <line x1="120" y1="58" x2="328" y2="100" stroke="#ffa657" stroke-width="1.5" stroke-dasharray="4,7" marker-end="url(#arr-ty)"/>
+            <line x1="120" y1="110" x2="328" y2="110" stroke="#ffa657" stroke-width="1.5" stroke-dasharray="4,7" marker-end="url(#arr-ty)"/>
+            <line x1="120" y1="162" x2="328" y2="120" stroke="#ffa657" stroke-width="1.5" stroke-dasharray="4,7" marker-end="url(#arr-ty)"/>
+            <rect x="510" y="55" width="205" height="95" rx="6" fill="rgba(255,166,87,.05)" stroke="rgba(255,166,87,.35)" stroke-width="1"/>
+            <text x="612" y="74" text-anchor="middle" font-size="9" fill="#ffa657" font-weight="700" font-family="sans-serif">PDP degraded — high latency</text>
+            <text x="612" y="89" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">p99 response time: &gt; 2000ms</text>
+            <text x="612" y="103" text-anchor="middle" font-size="8" fill="#ffa657" font-family="sans-serif">Circuit breaker: approaching threshold</text>
+            <text x="612" y="117" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">Decision cache absorbing load</text>
+            <text x="612" y="131" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">→ increase cache TTL, check PDP resources</text>
+          </g>
+
+          <!-- Level 3: cascade — services fail too -->
+          <g id="c-fail-l3" style="display:none">
+            <rect x="30" y="40" width="90" height="36" rx="5" fill="rgba(248,81,73,.2)" stroke="#f85149" stroke-width="2" class="fail-blink"/>
+            <rect x="30" y="92" width="90" height="36" rx="5" fill="rgba(248,81,73,.2)" stroke="#f85149" stroke-width="2" class="fail-blink"/>
+            <rect x="30" y="144" width="90" height="36" rx="5" fill="rgba(248,81,73,.2)" stroke="#f85149" stroke-width="2" class="fail-blink"/>
+            <text x="75" y="55" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif">503</text>
+            <text x="75" y="107" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif">503</text>
+            <text x="75" y="159" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif">503</text>
+            <rect x="455" y="165" width="400" height="48" rx="5" fill="rgba(248,81,73,.08)" stroke="rgba(248,81,73,.4)" stroke-width="1"/>
+            <text x="655" y="183" text-anchor="middle" font-size="9" fill="#f85149" font-weight="700" font-family="sans-serif">CASCADING FAILURE — all services returning 503</text>
+            <text x="655" y="198" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">Upstream callers timing out → blast radius expands across entire system</text>
+            <text x="655" y="210" text-anchor="middle" font-size="7.5" fill="#ffa657" font-family="sans-serif">This is the centralized SPOF worst case. Sidecar or Active-Active limits this blast radius.</text>
+          </g>
+        </g>
+
+        <!-- ACTIVE-ACTIVE topology -->
+        <g id="topo-activeactive" style="display:none">
+          <text x="430" y="18" text-anchor="middle" font-size="9" fill="#7d8590" font-family="sans-serif">Stateless AuthZEN API enables horizontal scaling — any replica answers any request</text>
+          <!-- LB -->
+          <rect x="160" y="90" width="90" height="40" rx="5" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+          <text x="205" y="108" text-anchor="middle" font-size="9" fill="#58a6ff" font-family="sans-serif" font-weight="700">Load Balancer</text>
+          <text x="205" y="120" text-anchor="middle" font-size="7" fill="#7d8590" font-family="sans-serif">Round-robin</text>
+          <!-- Services → LB -->
+          <rect x="30" y="60" width="80" height="30" rx="5" fill="#161b22" stroke="#7d8590" stroke-width="1.2"/>
+          <text x="70" y="79" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">Services</text>
+          <line x1="110" y1="75" x2="160" y2="100" stroke="#58a6ff" stroke-width="1.2" marker-end="url(#arr-t)"/>
+          <line x1="110" y1="110" x2="160" y2="110" stroke="#58a6ff" stroke-width="1.2" marker-end="url(#arr-t)"/>
+          <!-- LB → replicas -->
+          <line x1="250" y1="100" x2="320" y2="65" stroke="#58a6ff" stroke-width="1.2" marker-end="url(#arr-t)" id="aa-arr-1"/>
+          <line x1="250" y1="110" x2="320" y2="110" stroke="#58a6ff" stroke-width="1.2" marker-end="url(#arr-t)" id="aa-arr-2"/>
+          <line x1="250" y1="120" x2="320" y2="155" stroke="#58a6ff" stroke-width="1.2" marker-end="url(#arr-t)" id="aa-arr-3"/>
+          <!-- PDP replicas -->
+          <rect x="322" y="40" width="110" height="36" rx="5" fill="#161b22" stroke="#3fb950" stroke-width="1.5" id="aa-pdp-1"/>
+          <text x="377" y="57" text-anchor="middle" font-size="8" fill="#3fb950" font-family="sans-serif" font-weight="700">PDP Replica 1</text>
+          <text x="377" y="69" text-anchor="middle" font-size="7" fill="#7d8590" font-family="sans-serif">/access/v1/evaluation</text>
+          <rect x="322" y="92" width="110" height="36" rx="5" fill="#161b22" stroke="#3fb950" stroke-width="1.5" id="aa-pdp-2"/>
+          <text x="377" y="109" text-anchor="middle" font-size="8" fill="#3fb950" font-family="sans-serif" font-weight="700">PDP Replica 2</text>
+          <text x="377" y="121" text-anchor="middle" font-size="7" fill="#7d8590" font-family="sans-serif">/access/v1/evaluation</text>
+          <rect x="322" y="144" width="110" height="36" rx="5" fill="#161b22" stroke="#3fb950" stroke-width="1.5" id="aa-pdp-3"/>
+          <text x="377" y="161" text-anchor="middle" font-size="8" fill="#3fb950" font-family="sans-serif" font-weight="700">PDP Replica 3</text>
+          <text x="377" y="173" text-anchor="middle" font-size="7" fill="#7d8590" font-family="sans-serif">/access/v1/evaluation</text>
+          <!-- Policy sync -->
+          <rect x="470" y="88" width="100" height="34" rx="5" fill="#161b22" stroke="#bc8cff" stroke-width="1.5"/>
+          <text x="520" y="104" text-anchor="middle" font-size="8" fill="#bc8cff" font-family="sans-serif" font-weight="700">Policy Store</text>
+          <text x="520" y="115" text-anchor="middle" font-size="7" fill="#7d8590" font-family="sans-serif">sync push/pull</text>
+          <line x1="470" y1="100" x2="432" y2="65" stroke="#bc8cff" stroke-width="1" stroke-dasharray="3,2"/>
+          <line x1="470" y1="105" x2="432" y2="110" stroke="#bc8cff" stroke-width="1" stroke-dasharray="3,2"/>
+          <line x1="470" y1="110" x2="432" y2="158" stroke="#bc8cff" stroke-width="1" stroke-dasharray="3,2"/>
+          <!-- Why stateless callout -->
+          <rect x="590" y="70" width="230" height="75" rx="5" fill="rgba(63,185,80,.05)" stroke="rgba(63,185,80,.25)" stroke-width="1"/>
+          <text x="705" y="87" text-anchor="middle" font-size="8" fill="#3fb950" font-family="sans-serif" font-weight="700">Why AuthZEN scales horizontally</text>
+          <text x="705" y="100" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">Every request carries full context</text>
+          <text x="705" y="111" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">No session state on the PDP</text>
+          <text x="705" y="122" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">Any replica can answer any request</text>
+          <text x="705" y="133" text-anchor="middle" font-size="7.5" fill="#3fb950" font-family="sans-serif" font-weight="600">No sticky sessions required</text>
+          <!-- Failure state -->
+          <g id="aa-failure" style="display:none">
+            <rect x="322" y="92" width="110" height="36" rx="5" fill="rgba(248,81,73,.15)" stroke="#f85149" stroke-width="2"/>
+            <text x="377" y="107" text-anchor="middle" font-size="8" fill="#f85149" font-family="sans-serif" font-weight="700" class="fail-blink">Replica 2 DOWN</text>
+            <text x="377" y="120" text-anchor="middle" font-size="7" fill="#f85149" font-family="sans-serif">removing from rotation</text>
+            <line x1="250" y1="110" x2="320" y2="110" stroke="#f85149" stroke-width="1.5" stroke-dasharray="4,3" class="fail-blink" marker-end="url(#arr-tr)"/>
+            <text x="600" y="160" text-anchor="middle" font-size="9" fill="#3fb950" font-family="sans-serif" font-weight="700">Replicas 1 + 3 continue serving</text>
+            <text x="600" y="173" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">LB health check removes failed replica automatically</text>
+          </g>
+
+          <!-- Level 2: replicas 2+3 down — reduced capacity -->
+          <g id="aa-fail-l2" style="display:none">
+            <rect x="322" y="40" width="110" height="36" rx="5" fill="rgba(63,185,80,.15)" stroke="#3fb950" stroke-width="2.5"/>
+            <text x="377" y="56" text-anchor="middle" font-size="8" fill="#3fb950" font-weight="700" font-family="sans-serif">Replica 1 — 3× load</text>
+            <text x="377" y="69" text-anchor="middle" font-size="7" fill="#ffa657" font-family="sans-serif">at risk of overload</text>
+            <rect x="322" y="92" width="110" height="36" rx="5" fill="rgba(248,81,73,.2)" stroke="#f85149" stroke-width="2"/>
+            <text x="377" y="107" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif" class="fail-blink">Replica 2 DOWN</text>
+            <text x="377" y="120" text-anchor="middle" font-size="7" fill="#f85149" font-family="sans-serif">removed from LB</text>
+            <rect x="322" y="144" width="110" height="36" rx="5" fill="rgba(248,81,73,.2)" stroke="#f85149" stroke-width="2"/>
+            <text x="377" y="160" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif" class="fail-blink">Replica 3 DOWN</text>
+            <text x="377" y="173" text-anchor="middle" font-size="7" fill="#f85149" font-family="sans-serif">removed from LB</text>
+            <line x1="250" y1="110" x2="320" y2="110" stroke="#f85149" stroke-width="1.5" stroke-dasharray="4,3" class="fail-blink" marker-end="url(#arr-tr)"/>
+            <line x1="250" y1="120" x2="320" y2="155" stroke="#f85149" stroke-width="1.5" stroke-dasharray="4,3" class="fail-blink" marker-end="url(#arr-tr)"/>
+            <text x="625" y="190" text-anchor="middle" font-size="9" fill="#ffa657" font-weight="700" font-family="sans-serif">1 of 3 replicas serving — autoscale now</text>
+            <text x="625" y="205" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">Policy store sync still active to Replica 1</text>
+          </g>
+
+          <!-- Level 3: all replicas down — full cluster outage -->
+          <g id="aa-fail-l3" style="display:none">
+            <!-- Cover the "Policy Store" + "Why AuthZEN scales" panels so the callout is readable -->
+            <rect x="458" y="55" width="398" height="162" fill="#0a0f15"/>
+            <!-- LB turns red -->
+            <rect x="160" y="90" width="90" height="40" rx="5" fill="rgba(248,81,73,.15)" stroke="#f85149" stroke-width="2"/>
+            <text x="205" y="107" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif">LB: no healthy</text>
+            <text x="205" y="119" text-anchor="middle" font-size="7" fill="#f85149" font-family="sans-serif">upstream</text>
+            <!-- All replicas red -->
+            <rect x="322" y="40" width="110" height="36" rx="5" fill="rgba(248,81,73,.2)" stroke="#f85149" stroke-width="2" class="fail-blink"/>
+            <text x="377" y="57" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif">Replica 1 DOWN</text>
+            <rect x="322" y="92" width="110" height="36" rx="5" fill="rgba(248,81,73,.2)" stroke="#f85149" stroke-width="2" class="fail-blink"/>
+            <text x="377" y="109" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif">Replica 2 DOWN</text>
+            <rect x="322" y="144" width="110" height="36" rx="5" fill="rgba(248,81,73,.2)" stroke="#f85149" stroke-width="2" class="fail-blink"/>
+            <text x="377" y="161" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif">Replica 3 DOWN</text>
+            <!-- All arrows red -->
+            <line x1="250" y1="100" x2="320" y2="65" stroke="#f85149" stroke-width="1.5" stroke-dasharray="4,3" class="fail-blink" marker-end="url(#arr-tr)"/>
+            <line x1="250" y1="110" x2="320" y2="110" stroke="#f85149" stroke-width="1.5" stroke-dasharray="4,3" class="fail-blink" marker-end="url(#arr-tr)"/>
+            <line x1="250" y1="120" x2="320" y2="155" stroke="#f85149" stroke-width="1.5" stroke-dasharray="4,3" class="fail-blink" marker-end="url(#arr-tr)"/>
+            <!-- Outage callout — unobstructed in cleared space -->
+            <rect x="463" y="60" width="388" height="152" rx="6" fill="rgba(248,81,73,.07)" stroke="rgba(248,81,73,.45)" stroke-width="1.5"/>
+            <text x="657" y="83" text-anchor="middle" font-size="11" fill="#f85149" font-weight="700" font-family="sans-serif">FULL CLUSTER OUTAGE</text>
+            <text x="657" y="101" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">All replicas down simultaneously — LB returns 503</text>
+            <text x="657" y="116" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">Requires coordinated failure of every replica</text>
+            <line x1="490" y1="126" x2="824" y2="126" stroke="rgba(248,81,73,.2)" stroke-width="1"/>
+            <text x="657" y="141" text-anchor="middle" font-size="8" fill="#ffa657" font-weight="600" font-family="sans-serif">Very rare with autoscaling + health checks</text>
+            <text x="657" y="156" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">Geographic multi-region deployment eliminates single-region failures</text>
+            <text x="657" y="170" text-anchor="middle" font-size="8" fill="#3fb950" font-family="sans-serif">AuthZEN stateless model = trivial to add geo replicas</text>
+            <text x="657" y="184" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">Every request is self-contained — no cross-region session sync needed</text>
+          </g>
+        </g>
+
+        <!-- SIDECAR topology -->
+        <g id="topo-sidecar" style="display:none">
+          <text x="430" y="18" text-anchor="middle" font-size="9" fill="#7d8590" font-family="sans-serif">AuthZEN PDP runs as a sidecar — zero network hop, policy pushed from central control plane</text>
+          <!-- Pod A -->
+          <rect x="20" y="40" width="230" height="75" rx="6" fill="rgba(88,166,255,.04)" stroke="rgba(88,166,255,.3)" stroke-width="1" stroke-dasharray="4,2"/>
+          <text x="40" y="56" font-size="7" fill="#58a6ff" font-family="sans-serif">Pod A</text>
+          <rect x="28" y="60" width="90" height="44" rx="4" fill="#161b22" stroke="#7d8590" stroke-width="1.2"/>
+          <text x="73" y="79" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif" font-weight="700">Service A</text>
+          <text x="73" y="90" text-anchor="middle" font-size="7" fill="#7d8590" font-family="sans-serif">app code</text>
+          <line x1="118" y1="82" x2="138" y2="82" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arr-tg)"/>
+          <rect x="140" y="60" width="98" height="44" rx="4" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+          <text x="189" y="78" text-anchor="middle" font-size="8" fill="#3fb950" font-family="sans-serif" font-weight="700">PDP sidecar</text>
+          <text x="189" y="90" text-anchor="middle" font-size="7" fill="#7d8590" font-family="sans-serif">/access/v1/eval</text>
+          <text x="189" y="100" text-anchor="middle" font-size="7" fill="#7d8590" font-family="sans-serif">localhost:8181</text>
+
+          <!-- Pod B -->
+          <rect x="20" y="130" width="230" height="75" rx="6" fill="rgba(88,166,255,.04)" stroke="rgba(88,166,255,.3)" stroke-width="1" stroke-dasharray="4,2"/>
+          <text x="40" y="146" font-size="7" fill="#58a6ff" font-family="sans-serif">Pod B</text>
+          <rect x="28" y="150" width="90" height="44" rx="4" fill="#161b22" stroke="#7d8590" stroke-width="1.2"/>
+          <text x="73" y="169" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif" font-weight="700">Service B</text>
+          <text x="73" y="180" text-anchor="middle" font-size="7" fill="#7d8590" font-family="sans-serif">app code</text>
+          <line x1="118" y1="172" x2="138" y2="172" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arr-tg)"/>
+          <rect x="140" y="150" width="98" height="44" rx="4" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+          <text x="189" y="168" text-anchor="middle" font-size="8" fill="#3fb950" font-family="sans-serif" font-weight="700">PDP sidecar</text>
+          <text x="189" y="180" text-anchor="middle" font-size="7" fill="#7d8590" font-family="sans-serif">localhost:8181</text>
+          <text x="189" y="190" text-anchor="middle" font-size="7" fill="#7d8590" font-family="sans-serif">/access/v1/eval</text>
+
+          <!-- Control plane -->
+          <rect x="310" y="85" width="130" height="70" rx="6" fill="#161b22" stroke="#bc8cff" stroke-width="1.5"/>
+          <text x="375" y="107" text-anchor="middle" font-size="9" fill="#bc8cff" font-family="sans-serif" font-weight="700">Control Plane</text>
+          <text x="375" y="120" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">Styra DAS / OPA Bundle</text>
+          <text x="375" y="132" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">Policy push / pull</text>
+          <text x="375" y="144" text-anchor="middle" font-size="7" fill="#bc8cff" font-family="sans-serif">bundle refresh: 30s</text>
+
+          <!-- Control plane → sidecars -->
+          <line x1="310" y1="110" x2="240" y2="82" stroke="#bc8cff" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr-t)"/>
+          <line x1="310" y1="130" x2="240" y2="172" stroke="#bc8cff" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr-t)"/>
+
+          <!-- Latency comparison -->
+          <rect x="470" y="55" width="260" height="130" rx="6" fill="rgba(63,185,80,.04)" stroke="rgba(63,185,80,.2)" stroke-width="1"/>
+          <text x="600" y="74" text-anchor="middle" font-size="9" fill="#3fb950" font-family="sans-serif" font-weight="700">Latency comparison</text>
+          <text x="480" y="90" font-size="8" fill="#7d8590" font-family="sans-serif">Remote PDP (network):</text>
+          <text x="700" y="90" text-anchor="end" font-size="8" fill="#ffa657" font-family="monospace">5–20ms</text>
+          <text x="480" y="106" font-size="8" fill="#7d8590" font-family="sans-serif">Sidecar PDP (loopback):</text>
+          <text x="700" y="106" text-anchor="end" font-size="8" fill="#3fb950" font-family="monospace">&lt;1ms</text>
+          <text x="480" y="122" font-size="8" fill="#7d8590" font-family="sans-serif">Policy staleness (bundle):</text>
+          <text x="700" y="122" text-anchor="end" font-size="8" fill="#ffa657" font-family="monospace">≤ bundle TTL</text>
+          <text x="480" y="138" font-size="8" fill="#7d8590" font-family="sans-serif">Failure impact:</text>
+          <text x="700" y="138" text-anchor="end" font-size="8" fill="#3fb950" font-family="monospace">pod-local only</text>
+          <text x="480" y="155" font-size="8" fill="#7d8590" font-family="sans-serif">Trade-off:</text>
+          <text x="700" y="155" text-anchor="end" font-size="8" fill="#7d8590" font-family="monospace">more ops complexity</text>
+          <text x="480" y="171" font-size="8" fill="#3fb950" font-family="sans-serif" font-weight="600">AuthZEN interface: identical regardless</text>
+
+          <!-- Sidecar failure state -->
+          <g id="sc-failure" style="display:none">
+            <rect x="140" y="150" width="98" height="44" rx="4" fill="rgba(248,81,73,.15)" stroke="#f85149" stroke-width="2"/>
+            <text x="189" y="170" text-anchor="middle" font-size="8" fill="#f85149" font-family="sans-serif" font-weight="700" class="fail-blink">sidecar DOWN</text>
+            <text x="189" y="183" text-anchor="middle" font-size="7" fill="#ffa657" font-family="sans-serif">Pod B isolated only</text>
+            <text x="375" y="195" text-anchor="middle" font-size="8.5" fill="#3fb950" font-family="sans-serif" font-weight="700">Pod A unaffected — failures are pod-local</text>
+          </g>
+
+          <!-- Level 2: both sidecars down -->
+          <g id="sc-fail-l2" style="display:none">
+            <rect x="140" y="60" width="98" height="44" rx="4" fill="rgba(248,81,73,.18)" stroke="#f85149" stroke-width="2"/>
+            <text x="189" y="79" text-anchor="middle" font-size="8" fill="#f85149" font-weight="700" font-family="sans-serif" class="fail-blink">Pod A sidecar DOWN</text>
+            <text x="189" y="92" text-anchor="middle" font-size="7" fill="#ffa657" font-family="sans-serif">k8s restarting…</text>
+            <text x="375" y="210" text-anchor="middle" font-size="8.5" fill="#ffa657" font-weight="700" font-family="sans-serif">Systematic failure — check bundle size or sidecar OOM</text>
+          </g>
+
+          <!-- Level 3: control plane unreachable — stale policy -->
+          <g id="sc-fail-l3" style="display:none">
+            <!-- Clear interior of control plane box so base text doesn't bleed through -->
+            <rect x="312" y="87" width="126" height="66" fill="#0a0f15"/>
+            <rect x="310" y="85" width="130" height="70" rx="6" fill="rgba(248,81,73,.10)" stroke="#f85149" stroke-width="2" class="fail-blink"/>
+            <text x="375" y="106" text-anchor="middle" font-size="9" fill="#f85149" font-weight="700" font-family="sans-serif">Control Plane DOWN</text>
+            <text x="375" y="119" text-anchor="middle" font-size="7.5" fill="#ffa657" font-family="sans-serif">Policy sync stopped</text>
+            <text x="375" y="131" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">Sidecars: last-known policy</text>
+            <text x="375" y="143" text-anchor="middle" font-size="7" fill="#ffa657" font-family="sans-serif">staleness window open</text>
+            <line x1="310" y1="110" x2="240" y2="82" stroke="#f85149" stroke-width="1.2" stroke-dasharray="4,4" class="fail-blink"/>
+            <line x1="310" y1="130" x2="240" y2="172" stroke="#f85149" stroke-width="1.2" stroke-dasharray="4,4" class="fail-blink"/>
+            <rect x="460" y="155" width="375" height="58" rx="5" fill="rgba(255,166,87,.05)" stroke="rgba(255,166,87,.3)" stroke-width="1"/>
+            <text x="647" y="172" text-anchor="middle" font-size="9" fill="#ffa657" font-weight="700" font-family="sans-serif">Sidecars serving STALE POLICY</text>
+            <text x="647" y="186" text-anchor="middle" font-size="8" fill="#7d8590" font-family="sans-serif">Requests evaluated against last-fetched bundle (up to bundle TTL old)</text>
+            <text x="647" y="200" text-anchor="middle" font-size="8" fill="#f85149" font-family="sans-serif">Risk: recently revoked access may still be granted</text>
+            <text x="647" y="212" text-anchor="middle" font-size="7.5" fill="#7d8590" font-family="sans-serif">Mitigation: short bundle TTL + control-plane HA deployment</text>
+          </g>
+        </g>
+      </svg>
+    </div>
+
+    <div id="topo-insight" class="callout warn">
+      <strong>Centralized PDP risk:</strong> A single AuthZEN endpoint in the request critical path is a SPOF.
+      If the PDP is unreachable: fail-closed = all requests return 403; fail-open = all requests pass (with audit log).
+      Mitigate with circuit breaker + decision cache before calling PDP.
+    </div>
+  </div>
+
+  <!-- ── 3. Performance ───────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">Performance Considerations</div>
+    <p class="spec-ref">Adding a synchronous AuthZEN call to the critical path has cost. Here are the mitigation patterns.</p>
+
+    <div class="scenario-chips" id="perf-chips">
+      <div class="chip active" onclick="setPerfScenario('cache',this)">Decision Cache</div>
+      <div class="chip" onclick="setPerfScenario('bulk',this)">Sequential vs Bulk</div>
+      <div class="chip" onclick="setPerfScenario('failmode',this)">Fail-open / Fail-closed</div>
+      <div class="chip" onclick="setPerfScenario('tokenexchange',this)">Token Exchange Critical Path</div>
+    </div>
+
+    <!-- Cache scenario -->
+    <div id="perf-cache" class="perf-scenario">
+      <div class="legend-row">
+        <div class="leg-item"><div class="leg-dot" style="background:rgba(88,166,255,.5)"></div>Network round-trip</div>
+        <div class="leg-item"><div class="leg-dot" style="background:rgba(255,166,87,.5)"></div>PDP evaluation</div>
+        <div class="leg-item"><div class="leg-dot" style="background:rgba(63,185,80,.5)"></div>Cache lookup</div>
+      </div>
+      <div class="perf-bar-wrap">
+        <div class="perf-row">
+          <div class="perf-label">Cold (cache miss)</div>
+          <div class="perf-track">
+            <div class="perf-seg net" style="left:0%;width:35%"></div>
+            <div class="perf-seg eval" style="left:35%;width:15%"></div>
+            <div class="perf-seg net" style="left:50%;width:35%"></div>
+          </div>
+          <div class="perf-val">~20ms</div>
+        </div>
+        <div class="perf-row">
+          <div class="perf-label">Warm (cache hit)</div>
+          <div class="perf-track">
+            <div class="perf-seg cache" style="left:0%;width:2%"></div>
+          </div>
+          <div class="perf-val">&lt;0.5ms</div>
+        </div>
+        <div class="perf-row">
+          <div class="perf-label">After TTL expiry</div>
+          <div class="perf-track">
+            <div class="perf-seg cache" style="left:0%;width:1%"></div>
+            <div class="perf-seg net" style="left:1%;width:35%"></div>
+            <div class="perf-seg eval" style="left:36%;width:14%"></div>
+            <div class="perf-seg net" style="left:50%;width:35%"></div>
+          </div>
+          <div class="perf-val">~20ms</div>
+        </div>
+      </div>
+      <div class="callout warn" style="font-size:12px">
+        <strong>Cache key:</strong> <code>hash(subject_id + resource_type + resource_id + action_name)</code><br>
+        <strong>TTL tradeoff:</strong> short (5s) → frequent PDP calls; long (60s) → stale decisions after policy change.<br>
+        <strong>Gap in current spec:</strong> AuthZEN 2.0-ID2 has no cache-invalidation mechanism — the PDP cannot push "revoke this decision." This is an open WG discussion.
+      </div>
+    </div>
+
+    <!-- Bulk scenario -->
+    <div id="perf-bulk" class="perf-scenario" style="display:none">
+      <div class="legend-row">
+        <div class="leg-item"><div class="leg-dot" style="background:rgba(88,166,255,.5)"></div>Network round-trip</div>
+        <div class="leg-item"><div class="leg-dot" style="background:rgba(255,166,87,.5)"></div>PDP evaluation</div>
+        <div class="leg-item"><div class="leg-dot" style="background:rgba(188,140,255,.3)"></div>Waiting (blocked)</div>
+      </div>
+      <div class="perf-bar-wrap">
+        <div class="perf-row">
+          <div class="perf-label">Sequential: call 1</div>
+          <div class="perf-track">
+            <div class="perf-seg net" style="left:0%;width:18%"></div>
+            <div class="perf-seg eval" style="left:18%;width:7%"></div>
+            <div class="perf-seg net" style="left:25%;width:18%"></div>
+          </div>
+          <div class="perf-val">~12ms</div>
+        </div>
+        <div class="perf-row">
+          <div class="perf-label">Sequential: call 2</div>
+          <div class="perf-track">
+            <div class="perf-seg wait" style="left:0%;width:43%"></div>
+            <div class="perf-seg net" style="left:43%;width:18%"></div>
+            <div class="perf-seg eval" style="left:61%;width:7%"></div>
+            <div class="perf-seg net" style="left:68%;width:18%"></div>
+          </div>
+          <div class="perf-val">~12ms</div>
+        </div>
+        <div class="perf-row">
+          <div class="perf-label">Sequential: call 3</div>
+          <div class="perf-track">
+            <div class="perf-seg wait" style="left:0%;width:86%"></div>
+            <div class="perf-seg net" style="left:86%;width:7%"></div>
+            <div class="perf-seg eval" style="left:93%;width:4%"></div>
+          </div>
+          <div class="perf-val">~12ms</div>
+        </div>
+        <div class="perf-row" style="border-top:1px solid var(--border);padding-top:6px;margin-top:2px">
+          <div class="perf-label" style="font-weight:700;color:var(--red)">Sequential total</div>
+          <div class="perf-track" style="background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.2)">
+            <div class="perf-seg net" style="left:0%;width:100%;background:rgba(248,81,73,.3)"></div>
+          </div>
+          <div class="perf-val" style="color:var(--red)">~36ms</div>
+        </div>
+        <div class="perf-row" style="margin-top:6px">
+          <div class="perf-label" style="font-weight:700;color:var(--green)">Bulk /evaluations</div>
+          <div class="perf-track" style="background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.2)">
+            <div class="perf-seg net" style="left:0%;width:18%;background:rgba(88,166,255,.5)"></div>
+            <div class="perf-seg eval" style="left:18%;width:11%;background:rgba(255,166,87,.5)"></div>
+            <div class="perf-seg net" style="left:29%;width:18%;background:rgba(88,166,255,.5)"></div>
+          </div>
+          <div class="perf-val" style="color:var(--green)">~15ms</div>
+        </div>
+      </div>
+      <div class="callout ok" style="font-size:12px">
+        <code>POST /access/v1/evaluations</code> — send N permissions in one request, get N decisions back.
+        Amortises the network round-trip cost. Ideal for Lambda Authorizers checking multiple resource ARNs,
+        or pre-authorizing a set of operations before an agentic workflow.
+      </div>
+    </div>
+
+    <!-- Fail mode scenario -->
+    <div id="perf-failmode" class="perf-scenario" style="display:none">
+      <div class="info-grid c2">
+        <div class="info-box red">
+          <div class="ibt">Fail-closed (default recommended)</div>
+          <div class="ibv" style="font-size:11px;line-height:1.7">
+            PDP unreachable → <strong style="color:var(--red)">deny all requests</strong>.<br>
+            Safe for financial, healthcare, privileged access APIs.<br>
+            Trade-off: availability suffers during PDP outage.<br>
+            <strong>Mitigation:</strong> cache last-known decisions with TTL; serve from cache during circuit-breaker open state.<br>
+            <code>On outage → serve cached decision OR 503</code>
+          </div>
+        </div>
+        <div class="info-box orange">
+          <div class="ibt">Fail-open (for non-sensitive paths)</div>
+          <div class="ibv" style="font-size:11px;line-height:1.7">
+            PDP unreachable → <strong style="color:var(--orange)">allow + emit audit event</strong>.<br>
+            Acceptable for low-risk reads, telemetry endpoints, public data APIs.<br>
+            Trade-off: security degrades during outage.<br>
+            <strong>Mitigation:</strong> emit a <code>AUTHZ_FAILOPEN</code> audit log entry on every bypassed decision. Alert on spike.<br>
+            <code>On outage → allow + audit("fail-open")</code>
+          </div>
+        </div>
+      </div>
+      <div class="callout" style="font-size:12px">
+        <strong>Circuit breaker pattern:</strong> wrap the AuthZEN HTTP client. After N consecutive timeouts, open the circuit (stop calling PDP) and apply fail-open/fail-closed policy from local cache.
+        Half-open probe after 30s. <strong>AuthZEN's stateless five-tuple model</strong> means the circuit breaker can store cached decisions keyed by <code>(subject, resource, action)</code> with per-entry TTL.
+      </div>
+    </div>
+
+    <!-- Token exchange scenario -->
+    <div id="perf-tokenexchange" class="perf-scenario" style="display:none">
+      <div class="legend-row">
+        <div class="leg-item"><div class="leg-dot" style="background:rgba(88,166,255,.5)"></div>Token validation</div>
+        <div class="leg-item"><div class="leg-dot" style="background:rgba(255,166,87,.5)"></div>AuthZEN PDP call</div>
+        <div class="leg-item"><div class="leg-dot" style="background:rgba(63,185,80,.5)"></div>Token issuance</div>
+        <div class="leg-item"><div class="leg-dot" style="background:rgba(248,81,73,.3)"></div>Cascading wait</div>
+      </div>
+      <div class="perf-bar-wrap">
+        <div class="perf-row">
+          <div class="perf-label">AS: validate subject_token</div>
+          <div class="perf-track"><div class="perf-seg net" style="left:0%;width:12%"></div></div>
+          <div class="perf-val">~5ms</div>
+        </div>
+        <div class="perf-row">
+          <div class="perf-label">AS: call AuthZEN PDP</div>
+          <div class="perf-track">
+            <div class="perf-seg wait" style="left:0%;width:12%;background:rgba(248,81,73,.15)"></div>
+            <div class="perf-seg eval" style="left:12%;width:35%"></div>
+          </div>
+          <div class="perf-val">~18ms</div>
+        </div>
+        <div class="perf-row">
+          <div class="perf-label">AS: issue new token</div>
+          <div class="perf-track">
+            <div class="perf-seg wait" style="left:0%;width:47%;background:rgba(248,81,73,.15)"></div>
+            <div class="perf-seg cache" style="left:47%;width:8%"></div>
+          </div>
+          <div class="perf-val">~4ms</div>
+        </div>
+        <div class="perf-row">
+          <div class="perf-label">Service: wait for token</div>
+          <div class="perf-track">
+            <div class="perf-seg wait" style="left:0%;width:55%;background:rgba(248,81,73,.25)"></div>
+          </div>
+          <div class="perf-val">~27ms</div>
+        </div>
+        <div class="perf-row">
+          <div class="perf-label">Downstream API call</div>
+          <div class="perf-track">
+            <div class="perf-seg wait" style="left:0%;width:55%;background:rgba(248,81,73,.15)"></div>
+            <div class="perf-seg net" style="left:55%;width:20%"></div>
+          </div>
+          <div class="perf-val">~37ms</div>
+        </div>
+      </div>
+      <div class="callout warn" style="font-size:12px">
+        <strong>Highest-stakes AuthZEN surface:</strong> the PDP call sits inside RFC 8693 Token Exchange — a slow PDP
+        cascades into slow token issuance → slow downstream calls → cascading timeouts across the agent chain.
+        <strong>Mitigation:</strong> cache token-exchange decisions aggressively (subject + audience pair, TTL = token lifetime).
+        A 5-minute token with a 5-minute cache TTL means one AuthZEN call per token, not one per request.
+      </div>
+    </div>
+  </div>
+
+</div><!-- /scene-patterns -->
+
 <div class="scene" id="scene-standards">
   <div class="card">
     <div class="card-title">Standards Tracker</div>
@@ -1137,6 +1804,189 @@ async function openOPAPlayground() {
     window.open('https://play.openpolicyagent.org/', '_blank');
   });
 }
+
+// ── PATTERNS TAB ───────────────────────────────────────────────────────
+
+// Lambda Authorizer
+function setLambdaMode(mode, el) {
+  document.querySelectorAll('#lambda-chips .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const isAuthZEN = mode === 'authzen';
+  document.getElementById('lambda-traditional').style.display = isAuthZEN ? 'none' : '';
+  document.getElementById('lambda-authzen').style.display    = isAuthZEN ? '' : 'none';
+  document.getElementById('lambda-trad-flow').style.display   = isAuthZEN ? 'none' : '';
+  document.getElementById('lambda-authzen-flow').style.display = isAuthZEN ? '' : 'none';
+  document.getElementById('lambda-fiveTuple').style.display    = isAuthZEN ? '' : 'none';
+  document.getElementById('li-2').style.display = isAuthZEN ? '' : 'none';
+  document.getElementById('li-3').style.display = isAuthZEN ? '' : 'none';
+}
+
+// Topology — progressive failure escalation
+let currentTopo = 'centralized';
+let failLevel = 0; // 0 = healthy, 1 = degraded, 2 = failed, 3 = cascade
+
+const FAIL_BTN_STATES = [
+  { label: '⚠ Degrade',   bg: 'rgba(255,166,87,.1)',  color: '#ffa657',  border: '1px solid rgba(255,166,87,.4)' },
+  { label: '✗ Fail →',    bg: 'rgba(248,81,73,.12)',  color: 'var(--red)', border: '1px solid rgba(248,81,73,.5)' },
+  { label: '💥 Cascade →', bg: 'rgba(248,81,73,.22)', color: '#ff5555',  border: '2px solid #f85149' },
+];
+
+const TOPO_INSIGHTS = {
+  centralized: [
+    '<strong>Centralized PDP:</strong> A single AuthZEN endpoint in the request critical path. Simple to manage, but a single point of failure. Click <em>Degrade</em> to start the failure scenario.',
+    '<strong>Level 1 — Degraded:</strong> PDP responding slowly (p99 &gt; 2s). Circuit breaker approaching threshold. Decision cache is absorbing load. Mitigation: increase cache TTL, check PDP CPU/memory.',
+    '<strong>Level 2 — Failed:</strong> PDP unreachable. All services hit the open circuit breaker. Fail-closed = 403 for every request. Fail-open = allow + emit <code>AUTHZ_FAILOPEN</code> audit event.',
+    '<strong>Level 3 — Cascade:</strong> PDP outage has propagated — all services returning 503, upstream callers timing out. This is the centralized SPOF worst case. Active-Active or Sidecar limits blast radius.',
+  ],
+  activeactive: [
+    '<strong>Active-Active:</strong> AuthZEN\'s stateless request model (full five-tuple in every call, no session) means any replica answers any request. Click <em>Degrade</em> to simulate progressive failures.',
+    '<strong>Level 1 — Replica 2 down:</strong> LB health check removes it from rotation. Replicas 1 and 3 absorb traffic. Policy sync continues to remaining replicas. Minimal user impact.',
+    '<strong>Level 2 — Reduced capacity:</strong> Only Replica 1 serving at 3× normal load. Risk of overload cascade. Autoscale PDP replicas based on request queue depth before this point.',
+    '<strong>Level 3 — Full cluster outage:</strong> All replicas down simultaneously — very rare with autoscaling. LB has no healthy upstream. Geographic multi-region distribution eliminates single-region scenarios.',
+  ],
+  sidecar: [
+    '<strong>Sidecar pattern:</strong> Each pod runs its own AuthZEN PDP on loopback — &lt;1ms latency, no network dep. Failures are pod-local. Policy distributed via control plane bundle sync. Click <em>Degrade</em> to simulate.',
+    '<strong>Level 1 — Pod B sidecar down:</strong> Pod B falls back to fail-closed/open. Pod A completely unaffected — blast radius = one pod. Kubernetes restarts the sidecar container automatically.',
+    '<strong>Level 2 — Multiple sidecars down:</strong> Systematic failure across pods. Check policy bundle size, sidecar OOM, or a bad bundle causing crashes. Other pods may follow if root cause is not fixed.',
+    '<strong>Level 3 — Control plane unreachable:</strong> Sidecars keep serving using last-known policy. Risk: recently revoked permissions may still be granted until control plane recovers. Mitigation: short bundle TTL + control plane HA.',
+  ],
+};
+
+function updateFailBtn() {
+  const btn = document.getElementById('topo-fail-btn');
+  if (failLevel >= 3) {
+    btn.style.display = 'none';
+  } else {
+    btn.style.display = '';
+    const s = FAIL_BTN_STATES[failLevel];
+    btn.textContent = s.label;
+    btn.style.background = s.bg;
+    btn.style.color = s.color;
+    btn.style.border = s.border;
+  }
+  document.getElementById('topo-recover-btn').style.display = failLevel > 0 ? '' : 'none';
+}
+
+function updateTopoInsight() {
+  const el = document.getElementById('topo-insight');
+  el.innerHTML = TOPO_INSIGHTS[currentTopo][failLevel];
+  const cls = failLevel === 0 ? (currentTopo === 'centralized' ? 'warn' : 'ok')
+             : failLevel <= 1 ? 'warn'
+             : 'bad';
+  el.className = 'callout ' + cls;
+}
+
+function setTopo(name, el) {
+  if (failLevel > 0) recoverTopo(true);
+  document.querySelectorAll('#topo-chips .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  ['centralized','activeactive','sidecar'].forEach(t => {
+    document.getElementById('topo-' + t).style.display = t === name ? '' : 'none';
+  });
+  currentTopo = name;
+  updateTopoInsight();
+  updateFailBtn();
+}
+
+function injectFailure() {
+  if (failLevel >= 3) return;
+  failLevel++;
+  applyTopoLevel();
+  updateFailBtn();
+  updateTopoInsight();
+}
+
+function recoverTopo(silent) {
+  failLevel = 0;
+  resetTopoVisuals();
+  updateFailBtn();
+  if (!silent) updateTopoInsight();
+}
+
+function resetTopoVisuals() {
+  // Centralized reset
+  const pdp = document.getElementById('c-pdp-rect');
+  if (pdp) { pdp.setAttribute('stroke','#ffa657'); pdp.setAttribute('fill','#161b22'); }
+  const pt1 = document.getElementById('c-pdp-t1');
+  if (pt1) pt1.setAttribute('fill','#ffa657');
+  const pt2 = document.getElementById('c-pdp-t2');
+  if (pt2) { pt2.setAttribute('fill','#7d8590'); pt2.textContent = 'Single instance'; }
+  ['c-failure','c-fail-box','c-fail-l1','c-fail-l3'].forEach(id => { const e=document.getElementById(id); if(e) e.style.display='none'; });
+  ['c-fail-t1','c-fail-t2','c-fail-t3','c-fail-t4','c-fail-t5'].forEach(id => { const e=document.getElementById(id); if(e) e.style.display='none'; });
+  ['c-resp-a','c-resp-b','c-resp-c'].forEach(id => {
+    const e=document.getElementById(id);
+    if(e) { e.style.display=''; e.setAttribute('stroke','#3fb950'); e.setAttribute('stroke-dasharray','3,2'); }
+  });
+  ['c-arr-a','c-arr-b','c-arr-c'].forEach(id => { const e=document.getElementById(id); if(e) e.style.display=''; });
+
+  // Active-active reset
+  ['aa-failure','aa-fail-l2','aa-fail-l3'].forEach(id => { const e=document.getElementById(id); if(e) e.style.display='none'; });
+
+  // Sidecar reset
+  ['sc-failure','sc-fail-l2','sc-fail-l3'].forEach(id => { const e=document.getElementById(id); if(e) e.style.display='none'; });
+}
+
+function applyTopoLevel() {
+  const mode = document.getElementById('failmode-select').value;
+
+  if (currentTopo === 'centralized') {
+    if (failLevel === 1) {
+      document.getElementById('c-fail-l1').style.display = '';
+      const pdp = document.getElementById('c-pdp-rect');
+      pdp.setAttribute('stroke','#ffa657'); pdp.setAttribute('fill','rgba(255,166,87,.08)');
+      document.getElementById('c-pdp-t1').setAttribute('fill','#ffa657');
+      const t2 = document.getElementById('c-pdp-t2');
+      t2.textContent = 'High latency'; t2.setAttribute('fill','#ffa657');
+      ['c-resp-a','c-resp-b','c-resp-c'].forEach(id => {
+        const e=document.getElementById(id);
+        if(e) { e.setAttribute('stroke','#ffa657'); e.setAttribute('stroke-dasharray','3,7'); }
+      });
+    }
+    if (failLevel === 2) {
+      document.getElementById('c-fail-l1').style.display = 'none';
+      const pdp = document.getElementById('c-pdp-rect');
+      pdp.setAttribute('stroke','#f85149'); pdp.setAttribute('fill','rgba(248,81,73,.1)');
+      document.getElementById('c-pdp-t1').setAttribute('fill','#f85149');
+      const t2 = document.getElementById('c-pdp-t2');
+      t2.textContent = 'UNREACHABLE'; t2.setAttribute('fill','#f85149');
+      document.getElementById('c-failure').style.display = '';
+      document.getElementById('c-fail-box').style.display = '';
+      document.getElementById('c-fail-t1').style.display = '';
+      document.getElementById('c-fail-t2').style.display = '';
+      document.getElementById('c-fail-t3').style.display = mode === 'closed' ? '' : 'none';
+      document.getElementById('c-fail-t4').style.display = mode === 'open'   ? '' : 'none';
+      document.getElementById('c-fail-t5').style.display = '';
+      ['c-resp-a','c-resp-b','c-resp-c','c-arr-a','c-arr-b','c-arr-c'].forEach(id => {
+        const e=document.getElementById(id); if(e) e.style.display='none';
+      });
+    }
+    if (failLevel === 3) {
+      document.getElementById('c-fail-l3').style.display = '';
+    }
+  }
+
+  else if (currentTopo === 'activeactive') {
+    if (failLevel === 1) { document.getElementById('aa-failure').style.display = ''; }
+    if (failLevel === 2) { document.getElementById('aa-failure').style.display = 'none'; document.getElementById('aa-fail-l2').style.display = ''; }
+    if (failLevel === 3) { document.getElementById('aa-fail-l2').style.display = 'none'; document.getElementById('aa-fail-l3').style.display = ''; }
+  }
+
+  else if (currentTopo === 'sidecar') {
+    if (failLevel === 1) { document.getElementById('sc-failure').style.display = ''; }
+    if (failLevel === 2) { document.getElementById('sc-fail-l2').style.display = ''; }
+    if (failLevel === 3) { document.getElementById('sc-fail-l3').style.display = ''; }
+  }
+}
+
+// Performance scenarios
+function setPerfScenario(name, el) {
+  document.querySelectorAll('#perf-chips .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.perf-scenario').forEach(s => s.style.display = 'none');
+  document.getElementById('perf-' + name).style.display = '';
+}
+
+// ── OPA PLAYGROUND ─────────────────────────────────────────────────────
 
 function evalOPAInput() {
   if (!requireWasm()) return;
