@@ -1,6 +1,6 @@
 {
   "project": "authzen-poc",
-  "description": "AuthZEN Authorization API PoC — standards tracking baseline",
+  "description": "AuthZEN Authorization API PoC \u2014 standards tracking baseline",
   "standards": [
     {
       "id": "openid-authzen-api",
@@ -16,12 +16,14 @@
       "spec_url": "https://openid.net/wg/authzen/specifications/",
       "source_repo": "https://github.com/openid/authzen",
       "source_repo_api": "https://api.github.com/repos/openid/authzen/commits/HEAD",
-      "impact": "Core spec — defines the five-tuple (subject/resource/action/context/environment), the /access/v1/evaluation and /access/v1/evaluations endpoints, and the decision response format. All pkg/authzen types and handler implement this spec directly.",
+      "impact": "Core spec \u2014 defines the five-tuple (subject/resource/action/context/environment), the /access/v1/evaluation and /access/v1/evaluations endpoints, and the decision response format. All pkg/authzen types and handler implement this spec directly.",
       "used_in": [
         "pkg/authzen/types.go",
         "pkg/authzen/handler.go",
         "pkg/authzen/pdp.go"
-      ]
+      ],
+      "spec_content_hash": "7e5483fb8017b049206541f3af914f30fb6f9ea3383825d2eac4aa89b28bf2e7",
+      "github_commit_sha": "046040e419b553f3a27683d6caf7cf30c32f7909"
     },
     {
       "id": "draft-gazitt-oauth-authzen-issuance",
@@ -50,7 +52,7 @@
       "datatracker_url": "https://datatracker.ietf.org/doc/draft-gazitt-oauth-authzen-token-exchange/",
       "api_url": "https://datatracker.ietf.org/api/v1/doc/document/draft-gazitt-oauth-authzen-token-exchange/",
       "source_repo": null,
-      "impact": "Specifies how an RFC 8693 Token Exchange request (identity chaining, ID-JAG, Txn-Token) maps to an AuthZEN PDP evaluation. Directly implemented in the AS Bridge simulation (cmd/demo-wasm wasmSimulateAS): subject_token sub → subject.id, audience → resource.id, 'exchange' → action.name.",
+      "impact": "Specifies how an RFC 8693 Token Exchange request (identity chaining, ID-JAG, Txn-Token) maps to an AuthZEN PDP evaluation. Directly implemented in the AS Bridge simulation (cmd/demo-wasm wasmSimulateAS): subject_token sub \u2192 subject.id, audience \u2192 resource.id, 'exchange' \u2192 action.name.",
       "used_in": [
         "cmd/demo-wasm/main.go"
       ]
@@ -88,11 +90,13 @@
       "impact": "pkg/authzen/export.go ToOpenFGA() generates an OpenFGA DSL model (schema 1.1) and YAML tuples from InMemoryPDP rules. The OpenFGA demo tab links to play.fga.dev with the generated model.",
       "used_in": [
         "pkg/authzen/export.go"
-      ]
+      ],
+      "spec_content_hash": "e96e8843a2209ace3261a43d9bfcb3073939c0965ce241e94082a2f955f6bae9",
+      "github_commit_sha": "7a991c4b8f3c9030c6d152e1623059d4ffcf798a"
     },
     {
       "id": "opa-rego",
-      "label": "Open Policy Agent — Rego policy language",
+      "label": "Open Policy Agent \u2014 Rego policy language",
       "short": "Rego",
       "wg": "CNCF OPA",
       "last_known_rev": "v1",
@@ -107,15 +111,22 @@
       "impact": "pkg/authzen/export.go ToRego() generates a Rego v1 policy from InMemoryPDP rules. The OPA demo tab POSTs the policy to play.openpolicyagent.org share API to open it live.",
       "used_in": [
         "pkg/authzen/export.go"
-      ]
+      ],
+      "spec_content_hash": "fa8d1835fc9f4319a5d2cf800ff78f26547f184537a256f4acacceadd3320679",
+      "github_commit_sha": "faf9097448a39c7fd69496e3d93ccb8db2ba65ee"
     }
   ],
   "wg_feeds": [
     {
-      "name": "OpenID AuthZEN WG — GitHub releases",
+      "name": "OpenID AuthZEN WG \u2014 GitHub releases",
       "type": "rss",
       "feed_url": "https://github.com/openid/authzen/releases.atom",
-      "keywords": ["authzen", "authorization"]
+      "keywords": [
+        "authzen",
+        "authorization"
+      ],
+      "last_guid": "tag:github.com,2008:Repository/656937914/v0.1.22"
     }
-  ]
+  ],
+  "last_checked": "2026-08-14"
 }
