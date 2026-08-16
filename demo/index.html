@@ -106,7 +106,7 @@ textarea{resize:vertical;min-height:80px;font-family:'Cascadia Code','Fira Code'
 .step-data{font-size:11px;color:var(--muted)}
 
 /* SVG diagrams */
-.diagram{background:#0a0f15;border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:12px;overflow-x:auto}
+.diagram{background:radial-gradient(ellipse 80% 60% at 50% 50%,rgba(56,139,253,.08) 0%,transparent 70%),#0a0f15;border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:12px;overflow-x:auto}
 
 /* Standards table */
 .std-table{width:100%;border-collapse:collapse;font-size:12px}
@@ -162,6 +162,7 @@ textarea{resize:vertical;min-height:80px;font-family:'Cascadia Code','Fira Code'
 .fail-blink{animation:fail-pulse .5s ease infinite}
 /* HA ok pulse */
 @keyframes ok-pulse{0%,100%{r:14}50%{r:16}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
