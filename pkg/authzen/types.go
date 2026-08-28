@@ -34,10 +34,36 @@ type Context struct {
 	Properties map[string]any `json:"properties,omitempty"`
 }
 
+// Obligation is a mandatory action the PEP MUST carry out when the decision is honoured.
+// AuthZEN Obligations Profile 1.0 §3.
+type Obligation struct {
+	// ID is a URI identifying the obligation type (e.g. "urn:authzen:obligation:audit-log").
+	ID string `json:"id"`
+	// Parameters carries obligation-specific key/value data.
+	Parameters map[string]string `json:"parameters,omitempty"`
+}
+
 // EvaluationResponse is the AuthZEN access evaluation response.
+// AARP extends the binary Decision with an optional Pending outcome
+// ("deny but requestable").
 type EvaluationResponse struct {
-	Decision bool     `json:"decision"`
-	Context  *Context `json:"context,omitempty"`
+	// Decision is true when access is allowed, false when denied.
+	// When Pending is true, Decision is false and the subject may request access.
+	Decision bool `json:"decision"`
+
+	// Pending is true when access is denied but can be requested for approval.
+	// AuthZEN AARP 1.0 §4 — third outcome: "deny but requestable".
+	Pending bool `json:"pending,omitempty"`
+
+	// ApprovalEndpoint is the URL where the subject can submit an approval request.
+	// Only set when Pending is true. AARP 1.0 §4.2.
+	ApprovalEndpoint string `json:"approval_endpoint,omitempty"`
+
+	// Obligations is the list of mandatory actions the PEP must carry out.
+	// AuthZEN Obligations Profile 1.0 §3. Only present on ALLOW decisions.
+	Obligations []Obligation `json:"obligations,omitempty"`
+
+	Context *Context `json:"context,omitempty"`
 }
 
 // EvaluationsRequest is an AuthZEN bulk evaluations request.
