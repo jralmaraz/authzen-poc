@@ -618,6 +618,24 @@ credential.response.clientDataJSON      <span style="color:var(--muted)">// chal
     <div style="margin-top:12px;padding:9px 13px;background:rgba(88,166,255,.06);border-left:3px solid var(--blue);border-radius:0 6px 6px 0;font-size:12px;color:var(--muted)">
       <strong style="color:var(--text)">Simulation note.</strong> This demo runs via WebAssembly — there is no real authenticator. Go's <code>crypto/ecdsa</code> generates the P-256 key pair and <code>crypto/rand</code> produces the credential ID, giving cryptographically valid output. The private key lives in WASM memory rather than a hardware secure enclave — the ceremony structure and the math are identical.
     </div>
+
+    <!-- Tamper resistance note -->
+    <div style="margin-top:12px;padding:11px 14px;background:rgba(248,81,73,.05);border:1px solid rgba(248,81,73,.25);border-radius:8px;font-size:12px">
+      <div style="font-weight:700;color:var(--red);margin-bottom:8px;font-size:11px;text-transform:uppercase;letter-spacing:.07em">Can someone tamper the subject and claim <code style="text-transform:none">type: "webauthn"</code> without doing the ceremony?</div>
+      <div style="color:var(--muted);line-height:1.8">
+        <strong style="color:var(--text)">In this demo: the PDP trusts the subject as-is.</strong> Nothing stops a caller from POSTing <code>{"subject":{"type":"webauthn","id":"fake"}}</code> directly — the authorization layer does not verify that the ceremony was actually completed.<br><br>
+        <strong style="color:var(--text)">In production, the ceremony closes this gap cryptographically:</strong>
+        <ul style="margin:6px 0 0 16px;padding:0">
+          <li style="margin-bottom:4px">The authenticator signs a <strong>server-issued challenge</strong> with the hardware-bound private key. You cannot forge this — the key never leaves the device.</li>
+          <li style="margin-bottom:4px">The authentication server verifies that signature, then issues a <strong>signed JWT</strong> asserting the subject with <code>amr: ["hwk"]</code> (hardware key) and <code>acr: "L4"</code>.</li>
+          <li style="margin-bottom:4px">The AuthZEN PDP only trusts subject types that arrive inside <strong>a token it can verify the signature on</strong> — not raw caller-supplied JSON. A forged <code>type: "webauthn"</code> claim without a valid token signature is rejected.</li>
+        </ul>
+        <div style="margin-top:8px;padding:7px 10px;background:var(--surface);border-radius:6px;font-family:monospace;font-size:11px;color:var(--muted)">
+          Browser → WebAuthn assertion → AuthN server verifies sig → issues JWT (<code style="color:var(--green)">amr:["hwk"]</code>) → AuthZEN PDP checks JWT sig → trusts tier 4
+        </div>
+        The ceremony is the proof. The <code>amr</code> claim is the attestation. The JWT signature is the tamper-evident seal.
+      </div>
+    </div>
   </div>
 </div>
 
