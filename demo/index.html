@@ -530,8 +530,9 @@ textarea{resize:vertical;min-height:80px;font-family:'Cascadia Code','Fira Code'
 
   <!-- ── Why passkeys achieve stronger auth ── -->
   <div class="card" style="margin-top:20px">
-    <div class="card-title">Why Passkeys Achieve Stronger Authentication</div>
-    <p style="font-size:.875rem;color:var(--muted);margin-bottom:16px">The tier-4 decision above is only trustworthy if the underlying credential is actually stronger. Here is what makes a passkey different — and why that difference matters to the AuthZEN PDP.</p>
+    <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Under the hood — how the stronger subject is created</div>
+    <div class="card-title">Passkey Registration Ceremony (WebAuthn L4)</div>
+    <p style="font-size:.875rem;color:var(--muted);margin-bottom:16px">The <code>webauthn</code> subject type that unlocked the PERMIT decision above comes from a specific registration ceremony. AuthZEN does not define how that credential is created — it only consumes the subject type. Here is what happens on the authentication side to produce a credential the PDP can trust at tier 4.</p>
 
     <!-- 3-party flow -->
     <div style="display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:center;gap:0;margin-bottom:20px;font-size:12px">
