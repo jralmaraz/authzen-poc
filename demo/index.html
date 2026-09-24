@@ -409,97 +409,6 @@ textarea{resize:vertical;min-height:80px;font-family:'Cascadia Code','Fira Code'
 <!-- ══ STRONG AUTH — WEBAUTHN PASSKEY ══════════════════════════════════════ -->
 <div class="scene" id="scene-webauthn">
 
-  <!-- ── Registration Ceremony: how it actually works ── -->
-  <div class="card" style="margin-bottom:16px">
-    <div class="card-title">How WebAuthn Registration Works</div>
-    <p style="font-size:.875rem;color:var(--muted);margin-bottom:16px">A passkey is born from a three-party ceremony. No password is ever created; the private key is generated inside the authenticator and never exported.</p>
-
-    <!-- 3-party flow -->
-    <div style="display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:center;gap:0;margin-bottom:20px;font-size:12px">
-      <div style="padding:12px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);text-align:center">
-        <div style="font-weight:700;color:var(--blue);margin-bottom:4px;font-size:13px">① RP Server</div>
-        <div style="color:var(--muted);font-size:11px">authzen-poc.example</div>
-        <div style="margin-top:8px;font-size:11px;color:var(--text)">Generates random <code>challenge</code> (32 bytes)</div>
-        <div style="margin-top:4px;font-size:11px;color:var(--text)">Sends <code>publicKey</code> options</div>
-        <div style="margin-top:8px;font-size:11px;border-top:1px solid var(--border);padding-top:8px;color:var(--green)">Stores: credentialId + publicKey</div>
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 8px">
-        <div style="font-size:10px;color:var(--muted);text-align:center">challenge →</div>
-        <div style="width:32px;height:1px;background:var(--border)"></div>
-        <div style="font-size:10px;color:var(--green);text-align:center">← credential</div>
-      </div>
-      <div style="padding:12px 10px;border-radius:8px;border:2px solid var(--blue);background:rgba(88,166,255,.06);text-align:center">
-        <div style="font-weight:700;color:var(--blue);margin-bottom:4px;font-size:13px">② Browser JS</div>
-        <div style="color:var(--muted);font-size:11px">navigator.credentials</div>
-        <div style="margin-top:8px;font-size:11px;color:var(--text)">Calls <code>credentials.create()</code></div>
-        <div style="margin-top:4px;font-size:11px;color:var(--text)">Forwards options to OS</div>
-        <div style="margin-top:8px;font-size:11px;border-top:1px solid var(--border);padding-top:8px;color:var(--text)">Returns <code>PublicKeyCredential</code></div>
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 8px">
-        <div style="font-size:10px;color:var(--muted);text-align:center">→ create()</div>
-        <div style="width:32px;height:1px;background:var(--border)"></div>
-        <div style="font-size:10px;color:var(--green);text-align:center">← attObj</div>
-      </div>
-      <div style="padding:12px 10px;border-radius:8px;border:1px solid rgba(63,185,80,.5);background:rgba(63,185,80,.06);text-align:center">
-        <div style="font-weight:700;color:var(--green);margin-bottom:4px;font-size:13px">③ Authenticator</div>
-        <div style="color:var(--muted);font-size:11px">phone / hardware key</div>
-        <div style="margin-top:8px;font-size:11px;color:var(--text)">User verifies (biometric/PIN)</div>
-        <div style="margin-top:4px;font-size:11px;color:var(--text)">Generates EC P-256 key pair</div>
-        <div style="margin-top:4px;font-size:11px;color:var(--orange)">Private key never leaves device</div>
-      </div>
-    </div>
-
-    <!-- The actual JS API call -->
-    <div style="margin-bottom:14px">
-      <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.07em;margin-bottom:6px">THE BROWSER CALL — <code>navigator.credentials.create()</code></div>
-      <pre style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:11px;line-height:1.8;overflow-x:auto;margin:0"><span style="color:var(--blue)">const</span> credential = <span style="color:var(--blue)">await</span> navigator.credentials.<span style="color:var(--orange)">create</span>({
-  publicKey: {
-    rp:      { name: <span style="color:var(--green)">"authzen-poc.example"</span>, id: <span style="color:var(--green)">"authzen-poc.example"</span> },
-    user:    { id: <span style="color:var(--blue)">new</span> Uint8Array(<span style="color:var(--orange)">16</span>),         <span style="color:var(--muted)">// opaque user handle</span>
-               name: <span style="color:var(--green)">"alice@example.com"</span>, displayName: <span style="color:var(--green)">"Alice"</span> },
-    challenge:        crypto.<span style="color:var(--orange)">getRandomValues</span>(<span style="color:var(--blue)">new</span> Uint8Array(<span style="color:var(--orange)">32</span>)),  <span style="color:var(--muted)">// from RP — binds ceremony</span>
-    pubKeyCredParams: [{ type: <span style="color:var(--green)">"public-key"</span>, alg: <span style="color:var(--orange)">-7</span> }],  <span style="color:var(--muted)">// -7 = ES256 (COSE)</span>
-    authenticatorSelection: {
-      residentKey:      <span style="color:var(--green)">"required"</span>,    <span style="color:var(--muted)">// device-bound credential (L4 passkey)</span>
-      userVerification: <span style="color:var(--green)">"required"</span>     <span style="color:var(--muted)">// biometric or PIN mandatory</span>
-    },
-    attestation: <span style="color:var(--green)">"none"</span>                     <span style="color:var(--muted)">// no device attestation needed here</span>
-  }
-});
-
-<span style="color:var(--muted)">// What you get back:</span>
-credential.id                           <span style="color:var(--muted)">// base64url credential ID — store this</span>
-credential.response.attestationObject   <span style="color:var(--muted)">// CBOR: authData + credentialPublicKey</span>
-credential.response.clientDataJSON      <span style="color:var(--muted)">// challenge echo + origin (JSON)</span></pre>
-    </div>
-
-    <!-- What the attestationObject contains -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px">
-      <div style="padding:10px 12px;border-radius:7px;background:var(--surface);border:1px solid var(--border)">
-        <div style="font-weight:700;color:var(--orange);margin-bottom:7px;font-size:11px;text-transform:uppercase;letter-spacing:.07em">attestationObject (CBOR)</div>
-        <div style="color:var(--muted);line-height:1.9">
-          <code style="color:var(--text)">rpIdHash</code> — SHA-256 of the origin domain<br>
-          <code style="color:var(--text)">flags</code> — UP (user present) + UV (verified)<br>
-          <code style="color:var(--text)">credentialId</code> — random opaque identifier<br>
-          <code style="color:var(--green)">credentialPublicKey</code> — CBOR-COSE EC P-256<br>
-          <code style="color:var(--text)">sig</code> — authenticator self-attestation
-        </div>
-      </div>
-      <div style="padding:10px 12px;border-radius:7px;background:var(--surface);border:1px solid var(--border)">
-        <div style="font-weight:700;color:var(--blue);margin-bottom:7px;font-size:11px;text-transform:uppercase;letter-spacing:.07em">RP stores two things only</div>
-        <div style="color:var(--muted);line-height:1.9">
-          <code style="color:var(--green)">credentialId</code> — links future assertions to this key<br>
-          <code style="color:var(--green)">publicKey</code> — EC P-256 — verifies assertion signatures<br><br>
-          <span style="color:var(--red)">Never stored:</span> private key (hardware-bound),<br>password, PIN, biometric template
-        </div>
-      </div>
-    </div>
-
-    <div style="margin-top:12px;padding:9px 13px;background:rgba(88,166,255,.06);border-left:3px solid var(--blue);border-radius:0 6px 6px 0;font-size:12px;color:var(--muted)">
-      <strong style="color:var(--text)">Simulation note.</strong> This demo runs via WebAssembly — there is no real authenticator. Go's <code>crypto/ecdsa</code> generates the P-256 key pair and <code>crypto/rand</code> produces the credential ID, giving cryptographically valid output. The private key lives in WASM memory rather than a hardware secure enclave — the ceremony structure and the math are identical.
-    </div>
-  </div>
-
   <!-- ── Live demo card ── -->
   <div class="card">
     <div class="card-title">Strong Auth: Passkey Subject (WebAuthn Level 4)</div>
@@ -617,6 +526,97 @@ credential.response.clientDataJSON      <span style="color:var(--muted)">// chal
     <strong>WebAuthn Level 4 today:</strong> ES256 / RS256 / EdDSA only — no PQC COSE algorithm types yet.
     A future WebAuthn L5 or COSE extension is required for ML-DSA-65 passkeys.
     See <a href="https://www.w3.org/TR/webauthn-4/" target="_blank" style="color:var(--blue)">W3C WebAuthn L4</a> · NIST FIPS 204 (ML-DSA) pending COSE registration.
+  </div>
+
+  <!-- ── Why passkeys achieve stronger auth ── -->
+  <div class="card" style="margin-top:20px">
+    <div class="card-title">Why Passkeys Achieve Stronger Authentication</div>
+    <p style="font-size:.875rem;color:var(--muted);margin-bottom:16px">The tier-4 decision above is only trustworthy if the underlying credential is actually stronger. Here is what makes a passkey different — and why that difference matters to the AuthZEN PDP.</p>
+
+    <!-- 3-party flow -->
+    <div style="display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:center;gap:0;margin-bottom:20px;font-size:12px">
+      <div style="padding:12px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);text-align:center">
+        <div style="font-weight:700;color:var(--blue);margin-bottom:4px;font-size:13px">① RP Server</div>
+        <div style="color:var(--muted);font-size:11px">authzen-poc.example</div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text)">Generates random <code>challenge</code> (32 bytes)</div>
+        <div style="margin-top:4px;font-size:11px;color:var(--text)">Sends <code>publicKey</code> options</div>
+        <div style="margin-top:8px;font-size:11px;border-top:1px solid var(--border);padding-top:8px;color:var(--green)">Stores: credentialId + publicKey</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 8px">
+        <div style="font-size:10px;color:var(--muted);text-align:center">challenge →</div>
+        <div style="width:32px;height:1px;background:var(--border)"></div>
+        <div style="font-size:10px;color:var(--green);text-align:center">← credential</div>
+      </div>
+      <div style="padding:12px 10px;border-radius:8px;border:2px solid var(--blue);background:rgba(88,166,255,.06);text-align:center">
+        <div style="font-weight:700;color:var(--blue);margin-bottom:4px;font-size:13px">② Browser JS</div>
+        <div style="color:var(--muted);font-size:11px">navigator.credentials</div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text)">Calls <code>credentials.create()</code></div>
+        <div style="margin-top:4px;font-size:11px;color:var(--text)">Forwards options to OS</div>
+        <div style="margin-top:8px;font-size:11px;border-top:1px solid var(--border);padding-top:8px;color:var(--text)">Returns <code>PublicKeyCredential</code></div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 8px">
+        <div style="font-size:10px;color:var(--muted);text-align:center">→ create()</div>
+        <div style="width:32px;height:1px;background:var(--border)"></div>
+        <div style="font-size:10px;color:var(--green);text-align:center">← attObj</div>
+      </div>
+      <div style="padding:12px 10px;border-radius:8px;border:1px solid rgba(63,185,80,.5);background:rgba(63,185,80,.06);text-align:center">
+        <div style="font-weight:700;color:var(--green);margin-bottom:4px;font-size:13px">③ Authenticator</div>
+        <div style="color:var(--muted);font-size:11px">phone / hardware key</div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text)">User verifies (biometric/PIN)</div>
+        <div style="margin-top:4px;font-size:11px;color:var(--text)">Generates EC P-256 key pair</div>
+        <div style="margin-top:4px;font-size:11px;color:var(--orange)">Private key never leaves device</div>
+      </div>
+    </div>
+
+    <!-- The actual JS API call -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.07em;margin-bottom:6px">THE BROWSER CALL — <code>navigator.credentials.create()</code></div>
+      <pre style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:11px;line-height:1.8;overflow-x:auto;margin:0"><span style="color:var(--blue)">const</span> credential = <span style="color:var(--blue)">await</span> navigator.credentials.<span style="color:var(--orange)">create</span>({
+  publicKey: {
+    rp:      { name: <span style="color:var(--green)">"authzen-poc.example"</span>, id: <span style="color:var(--green)">"authzen-poc.example"</span> },
+    user:    { id: <span style="color:var(--blue)">new</span> Uint8Array(<span style="color:var(--orange)">16</span>),         <span style="color:var(--muted)">// opaque user handle</span>
+               name: <span style="color:var(--green)">"alice@example.com"</span>, displayName: <span style="color:var(--green)">"Alice"</span> },
+    challenge:        crypto.<span style="color:var(--orange)">getRandomValues</span>(<span style="color:var(--blue)">new</span> Uint8Array(<span style="color:var(--orange)">32</span>)),  <span style="color:var(--muted)">// from RP — binds ceremony</span>
+    pubKeyCredParams: [{ type: <span style="color:var(--green)">"public-key"</span>, alg: <span style="color:var(--orange)">-7</span> }],  <span style="color:var(--muted)">// -7 = ES256 (COSE)</span>
+    authenticatorSelection: {
+      residentKey:      <span style="color:var(--green)">"required"</span>,    <span style="color:var(--muted)">// device-bound credential → tier 4</span>
+      userVerification: <span style="color:var(--green)">"required"</span>     <span style="color:var(--muted)">// biometric or PIN mandatory</span>
+    },
+    attestation: <span style="color:var(--green)">"none"</span>                     <span style="color:var(--muted)">// no device attestation needed here</span>
+  }
+});
+
+<span style="color:var(--muted)">// What you get back:</span>
+credential.id                           <span style="color:var(--muted)">// base64url credential ID — store this</span>
+credential.response.attestationObject   <span style="color:var(--muted)">// CBOR: authData + credentialPublicKey</span>
+credential.response.clientDataJSON      <span style="color:var(--muted)">// challenge echo + origin (JSON)</span></pre>
+    </div>
+
+    <!-- What the attestationObject contains -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px">
+      <div style="padding:10px 12px;border-radius:7px;background:var(--surface);border:1px solid var(--border)">
+        <div style="font-weight:700;color:var(--orange);margin-bottom:7px;font-size:11px;text-transform:uppercase;letter-spacing:.07em">attestationObject (CBOR)</div>
+        <div style="color:var(--muted);line-height:1.9">
+          <code style="color:var(--text)">rpIdHash</code> — SHA-256 of the origin domain<br>
+          <code style="color:var(--text)">flags</code> — UP (user present) + UV (verified)<br>
+          <code style="color:var(--text)">credentialId</code> — random opaque identifier<br>
+          <code style="color:var(--green)">credentialPublicKey</code> — CBOR-COSE EC P-256<br>
+          <code style="color:var(--text)">sig</code> — authenticator self-attestation
+        </div>
+      </div>
+      <div style="padding:10px 12px;border-radius:7px;background:var(--surface);border:1px solid var(--border)">
+        <div style="font-weight:700;color:var(--blue);margin-bottom:7px;font-size:11px;text-transform:uppercase;letter-spacing:.07em">RP stores two things only</div>
+        <div style="color:var(--muted);line-height:1.9">
+          <code style="color:var(--green)">credentialId</code> — links future assertions to this key<br>
+          <code style="color:var(--green)">publicKey</code> — EC P-256 — verifies assertion signatures<br><br>
+          <span style="color:var(--red)">Never stored:</span> private key (hardware-bound),<br>password, PIN, biometric template
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;padding:9px 13px;background:rgba(88,166,255,.06);border-left:3px solid var(--blue);border-radius:0 6px 6px 0;font-size:12px;color:var(--muted)">
+      <strong style="color:var(--text)">Simulation note.</strong> This demo runs via WebAssembly — there is no real authenticator. Go's <code>crypto/ecdsa</code> generates the P-256 key pair and <code>crypto/rand</code> produces the credential ID, giving cryptographically valid output. The private key lives in WASM memory rather than a hardware secure enclave — the ceremony structure and the math are identical.
+    </div>
   </div>
 </div>
 
