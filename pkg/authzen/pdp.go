@@ -159,9 +159,23 @@ func matchGlob(pattern, value string) bool {
 }
 
 // DefaultRules returns demo-ready policy rules covering users, SPIFFE workloads,
-// and OAuth Token Exchange scenarios.
+// OAuth Token Exchange scenarios, and WebAuthn passkey subjects.
 func DefaultRules() []PolicyRule {
 	return []PolicyRule{
+		// ── WebAuthn / trust-tier rules (highest priority) ───────────────────
+		{
+			SubjectType: "webauthn", SubjectID: "*",
+			ResourceType: "document", ResourceID: "classified-*",
+			ActionName: "can_read", Decision: true, Priority: 30,
+			Label: "passkey required for classified docs",
+		},
+		{
+			SubjectType: "api_key", SubjectID: "*",
+			ResourceType: "document", ResourceID: "classified-*",
+			ActionName: "can_read", Decision: false, Priority: 25,
+			Label: "api_key cannot read classified docs",
+		},
+		// ── User rules ───────────────────────────────────────────────────────
 		{
 			SubjectType: "user", SubjectID: "alice@example.com",
 			ResourceType: "document", ResourceID: "*",
